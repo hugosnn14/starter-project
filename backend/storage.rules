@@ -1,22 +1,68 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Politica general:
+    // - las miniaturas viven en media/articles/{articleId}/thumbnail.ext
+    // - solo el autor del articulo puede subir, reemplazar o borrar su imagen
+    // - solo se aceptan imagenes y con un tamano maximo de 5 MB
 
-    // This rule allows anyone with your Storage bucket reference to view, edit,
-    // and delete all data in your Storage bucket. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Storage bucket will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Storage bucket will be denied until you Update
-    // your rules
+    // Comprueba si hay un usuario autenticado.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Comprueba si el articulo existe en Firestore.
+    function articleExists(articleId) {
+      return firestore.exists(/databases/(default)/documents/articles/$(articleId));
+    }
+
+    // Comprueba si el articulo ya es publico en Firestore.
+    function isPublishedArticle(articleId) {
+      return articleExists(articleId)
+        && firestore.get(/databases/(default)/documents/articles/$(articleId)).data.status == 'published';
+    }
+
+    // Comprueba si el usuario autenticado es el autor del articulo.
+    // Asi mantenemos Storage alineado con las reglas de Firestore.
+    function isArticleOwner(articleId) {
+      return isSignedIn()
+        && articleExists(articleId)
+        && firestore.get(/databases/(default)/documents/articles/$(articleId)).data.authorId == request.auth.uid;
+    }
+
+    // Solo permitimos imágenes y con un tamaño razonable para una miniatura.
+    function isValidImageUpload() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // En escrituras con fichero, exigimos el nombre esperado para la miniatura.
+    function hasValidThumbnailName(fileName) {
+      return fileName.matches('thumbnail[.][A-Za-z0-9]+');
+    }
+
+    // Las miniaturas deben vivir en:
+    // media/articles/{articleId}/thumbnail.{extension}
+    match /media/articles/{articleId}/{fileName} {
+      // La lectura sigue la misma idea que Firestore:
+      // publico si el articulo esta publicado, o privada para su autor.
+      allow read: if isPublishedArticle(articleId) || isArticleOwner(articleId);
+
+      // En Storage usamos "write" para subidas, reemplazos y borrados.
+      // Si request.resource es null, se trata de un borrado.
+      // Si no es null, validamos nombre de fichero, tipo y tamaño.
+      allow write: if isArticleOwner(articleId)
+        && (
+          request.resource == null
+          || (hasValidThumbnailName(fileName) && isValidImageUpload())
+        );
+    }
+
+    // Todo lo demás queda denegado por defecto.
     match /{allPaths=**} {
-      allow read, write: if request.time < timestamp.date(2026, 4, 24);
+      allow read, write: if false;
     }
   }
 }

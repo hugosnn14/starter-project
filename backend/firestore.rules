@@ -2,18 +2,122 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Politica general:
+    // - cualquiera puede leer articulos publicados
+    // - el autor puede crear, editar y borrar sus propios articulos
+    // - el documento debe respetar el esquema definido en DB_SCHEMA.md
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    // Comprueba si hay un usuario autenticado.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Comprueba si el usuario autenticado es el autor del artículo.
+    function isOwner(authorId) {
+      return isSignedIn() && request.auth.uid == authorId;
+    }
+
+    // El documento solo puede contener los campos definidos en el esquema.
+    function hasValidKeys(doc) {
+      let required = [
+        'authorId',
+        'authorName',
+        'title',
+        'description',
+        'content',
+        'category',
+        'thumbnailPath',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ];
+      let optional = ['publishedAt', 'sourceUrl', 'tags'];
+
+      return doc.keys().hasAll(required)
+        && doc.keys().hasOnly(required.concat(optional));
+    }
+
+    // Validación básica para textos obligatorios.
+    function isNonEmptyString(value) {
+      return value is string && value.trim().size() > 0;
+    }
+
+    // Estados permitidos para el artículo.
+    function hasValidStatus(status) {
+      return status == 'draft'
+        || status == 'published'
+        || status == 'archived';
+    }
+
+    // La miniatura debe apuntar al directorio esperado en Storage.
+    function hasValidThumbnailPath(path, articleId) {
+      return path is string
+        && path.matches('media/articles/' + articleId + '/thumbnail[.][A-Za-z0-9]+');
+    }
+
+    // sourceUrl y tags son opcionales.
+    function hasValidOptionalFields(doc) {
+      let sourceUrl = doc.get('sourceUrl', null);
+      let tags = doc.get('tags', []);
+
+      return (sourceUrl == null || sourceUrl is string)
+        && tags is list;
+    }
+
+    // Si el artículo está en draft, publishedAt debe ser null.
+    // Si está published o archived, publishedAt debe existir como timestamp.
+    function hasValidPublishedState(doc) {
+      let publishedAt = doc.get('publishedAt', null);
+
+      return (doc.status == 'draft' && publishedAt == null)
+        || ((doc.status == 'published' || doc.status == 'archived')
+          && publishedAt is timestamp);
+    }
+
+    // Validación principal del esquema del artículo.
+    function isValidArticle(doc, articleId) {
+      return hasValidKeys(doc)
+        && isOwner(doc.authorId)
+        && isNonEmptyString(doc.authorName)
+        && isNonEmptyString(doc.title)
+        && isNonEmptyString(doc.description)
+        && isNonEmptyString(doc.content)
+        && isNonEmptyString(doc.category)
+        && hasValidStatus(doc.status)
+        && hasValidThumbnailPath(doc.thumbnailPath, articleId)
+        && doc.createdAt is timestamp
+        && doc.updatedAt is timestamp
+        && hasValidOptionalFields(doc)
+        && hasValidPublishedState(doc);
+    }
+
+    match /articles/{articleId} {
+      // Cualquiera puede leer artículos publicados.
+      // El autor también puede leer sus propios drafts o archivados.
+      allow get, list: if resource.data.status == 'published'
+        || isOwner(resource.data.authorId);
+
+      // Solo el autor autenticado puede crear el artículo
+      // y debe usar timestamps de servidor al crearlo.
+      allow create: if isValidArticle(request.resource.data, articleId)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      // Solo el autor puede editarlo.
+      // authorId y createdAt no se pueden modificar.
+      allow update: if isOwner(resource.data.authorId)
+        && isValidArticle(request.resource.data, articleId)
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      // Solo el autor puede borrarlo.
+      allow delete: if isOwner(resource.data.authorId);
+    }
+
+    // Todo lo demás queda denegado por defecto.
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 4, 24);
+      allow read, write: if false;
     }
   }
 }
