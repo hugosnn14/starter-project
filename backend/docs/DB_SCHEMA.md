@@ -109,6 +109,44 @@ Recommended mapping from Firestore to frontend:
 
 This keeps the backend schema clean while preserving compatibility with the current presentation layer.
 
+## Comparison with the Current News API Shape
+
+The assignment suggests studying the article data already used by the app. Today, the frontend consumes NewsAPI articles with this effective shape:
+
+```json
+{
+  "author": "string",
+  "title": "string",
+  "description": "string",
+  "url": "string",
+  "urlToImage": "string",
+  "publishedAt": "string",
+  "content": "string"
+}
+```
+
+This schema was the starting point for the Firestore design, but it was not copied literally because Firestore must support journalist-owned content, lifecycle management and Cloud Storage integration.
+
+| NewsAPI field | Firestore field | Reason |
+|---|---|---|
+| `author` | `authorName` | Keeps the visible author name while separating it from identity concerns. |
+| not present | `authorId` | Needed to know which authenticated journalist owns the article. |
+| `title` | `title` | Direct mapping. |
+| `description` | `description` | Direct mapping. |
+| `content` | `content` | Direct mapping. |
+| `publishedAt` | `publishedAt` | Same meaning, but stored as Firestore `timestamp` instead of UI string data. |
+| `url` | `sourceUrl` | Optional source reference instead of assuming every article needs a public external link. |
+| `urlToImage` | `thumbnailPath` | The assignment requires images to live in Firebase Cloud Storage under `media/articles`, so a storage path is more appropriate than an external URL. |
+| not present | `status` | Needed to support draft, published and archived article states. |
+| not present | `createdAt` / `updatedAt` | Required for auditability, ordering and safe updates. |
+| not present | `category` | Useful for filtering and aligned with the current app's query pattern. |
+| not present | `tags` | Optional metadata for future search and classification. |
+
+Conclusion:
+- NewsAPI defines the content shape the UI already expects.
+- Firestore extends that shape with ownership, timestamps and publication metadata.
+- The main structural change is replacing `urlToImage` with `thumbnailPath` to comply with the Firebase Storage requirement.
+
 ## Query Patterns This Schema Supports
 - List latest published articles:
   - filter `status == "published"`
