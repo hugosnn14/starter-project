@@ -4,4 +4,6 @@ abstract class ArticleRepository {
   Future<List<ArticleEntity>> getArticles();
 
   Future<ArticleEntity?> getArticleById(int articleId);
+
+  Future<ArticleEntity> createArticle(ArticleEntity article);
 }

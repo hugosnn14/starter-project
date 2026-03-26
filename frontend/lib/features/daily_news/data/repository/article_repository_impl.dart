@@ -2,8 +2,8 @@ import 'package:news_app_clean_architecture/features/daily_news/domain/entities/
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 
 class ArticleRepositoryImpl implements ArticleRepository {
-  final List<ArticleEntity> _articles = const [
-    ArticleEntity(
+  final List<ArticleEntity> _articles = [
+    const ArticleEntity(
       id: 1,
       author: 'Ada Lovelace',
       title: 'Cities can reuse water better than we think',
@@ -15,7 +15,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
       content:
           'Water reuse is no longer a futuristic idea. Municipal systems can adopt small improvements that generate measurable impact in the short term.',
     ),
-    ArticleEntity(
+    const ArticleEntity(
       id: 2,
       author: 'Grace Hopper',
       title: 'Why public tech products need simpler writing',
@@ -28,7 +28,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
       content:
           'When interfaces are difficult to understand, the system fails before the user even starts. Clear text is product quality, not polish.',
     ),
-    ArticleEntity(
+    const ArticleEntity(
       id: 3,
       author: 'Katherine Johnson',
       title: 'Small teams win by finishing smaller scopes',
@@ -43,6 +43,8 @@ class ArticleRepositoryImpl implements ArticleRepository {
     ),
   ];
 
+  int _nextId = 4;
+
   @override
   Future<List<ArticleEntity>> getArticles() async {
     return List.unmodifiable(_articles);
@@ -56,5 +58,23 @@ class ArticleRepositoryImpl implements ArticleRepository {
       }
     }
     return null;
+  }
+
+  @override
+  Future<ArticleEntity> createArticle(ArticleEntity article) async {
+    final createdArticle = ArticleEntity(
+      id: _nextId++,
+      author: article.author,
+      title: article.title,
+      description: article.description,
+      url: 'https://example.com/articles/${DateTime.now().millisecondsSinceEpoch}',
+      urlToImage: 'https://placehold.co/600x400/png?text=New+Article',
+      publishedAt: DateTime.now().toIso8601String().split('T').first,
+      content: article.content,
+    );
+
+    _articles.insert(0, createdArticle);
+
+    return createdArticle;
   }
 }

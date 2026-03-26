@@ -52,9 +52,14 @@ class DailyNews extends StatelessWidget {
                 ],
               ),
             ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => _onCreateArticlePressed(context),
+              child: const Icon(Icons.add),
+            ),
           );
         }
-        if (state.status == ArticlesStatus.success) {
+        if (state.status == ArticlesStatus.success ||
+            state.status == ArticlesStatus.submitting) {
           return _buildArticlesPage(context, state.articles);
         }
         return const SizedBox();
@@ -64,30 +69,38 @@ class DailyNews extends StatelessWidget {
 
   Widget _buildArticlesPage(
       BuildContext context, List<ArticleEntity> articles) {
-    if (articles.isEmpty) {
-      return Scaffold(
-        appBar: _buildAppbar(),
-        body: const Center(
-          child: Text('No hay articulos disponibles.'),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: _buildAppbar(),
-      body: ListView.builder(
-        itemCount: articles.length,
-        itemBuilder: (context, index) {
-          return ArticleWidget(
-            article: articles[index],
-            onArticlePressed: (article) => _onArticlePressed(context, article),
-          );
-        },
+      body: articles.isEmpty
+          ? const Center(
+              child: Text('No hay articulos disponibles.'),
+            )
+          : ListView.builder(
+              itemCount: articles.length,
+              itemBuilder: (context, index) {
+                return ArticleWidget(
+                  article: articles[index],
+                  onArticlePressed: (article) =>
+                      _onArticlePressed(context, article),
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _onCreateArticlePressed(context),
+        child: const Icon(Icons.add),
       ),
     );
   }
 
   void _onArticlePressed(BuildContext context, ArticleEntity article) {
     Navigator.pushNamed(context, '/ArticleDetails', arguments: article);
+  }
+
+  void _onCreateArticlePressed(BuildContext context) {
+    Navigator.pushNamed(
+      context,
+      '/CreateArticle',
+      arguments: context.read<ArticlesBloc>(),
+    );
   }
 }
