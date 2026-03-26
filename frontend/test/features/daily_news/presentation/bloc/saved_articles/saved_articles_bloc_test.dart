@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/repository/in_memory_article_repository.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_articles.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_saved_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/remove_article.dart';
@@ -13,7 +13,7 @@ void main() {
   group('SavedArticlesBloc', () {
     test('emits loading and success when saved articles are requested',
         () async {
-      final repository = ArticleRepositoryImpl();
+      final repository = InMemoryArticleRepository();
       final bloc = SavedArticlesBloc(
         GetSavedArticleUseCase(repository),
         SaveArticleUseCase(repository),
@@ -34,7 +34,7 @@ void main() {
     });
 
     test('emits loading and success when an article is saved', () async {
-      final repository = ArticleRepositoryImpl();
+      final repository = InMemoryArticleRepository();
       final article = (await GetArticlesUseCase(repository)()).first;
       final bloc = SavedArticlesBloc(
         GetSavedArticleUseCase(repository),
@@ -57,7 +57,7 @@ void main() {
     });
 
     test('emits loading and success when an article is removed', () async {
-      final repository = ArticleRepositoryImpl();
+      final repository = InMemoryArticleRepository();
       final article = (await GetArticlesUseCase(repository)()).first;
       await SaveArticleUseCase(repository)(params: article);
 

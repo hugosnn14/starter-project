@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/repository/in_memory_article_repository.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_articles.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_event.dart';
@@ -9,7 +9,7 @@ import '../../../../../helpers/fake_article_repository.dart';
 void main() {
   group('ArticlesBloc', () {
     test('emits loading and success when articles are loaded', () async {
-      final bloc = ArticlesBloc(GetArticlesUseCase(ArticleRepositoryImpl()));
+      final bloc = ArticlesBloc(GetArticlesUseCase(InMemoryArticleRepository()));
 
       final emittedStatesFuture = bloc.stream.take(2).toList();
 

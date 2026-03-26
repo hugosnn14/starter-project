@@ -6,7 +6,7 @@ import '../../../../core/constants/constants.dart';
 @Entity(tableName: 'article', primaryKeys: ['id'])
 class ArticleModel extends ArticleEntity {
   const ArticleModel({
-    int? id,
+    String? id,
     String? author,
     String? title,
     String? description,

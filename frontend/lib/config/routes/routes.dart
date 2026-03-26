@@ -66,8 +66,8 @@ class AppRoutes {
     );
   }
 
-  static int _extractArticleId(Object? arguments) {
-    if (arguments is int) {
+  static String _extractArticleId(Object? arguments) {
+    if (arguments is String) {
       return arguments;
     }
 

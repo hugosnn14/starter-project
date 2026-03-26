@@ -2,10 +2,10 @@ import 'package:news_app_clean_architecture/core/resources/data_state.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 
-class ArticleRepositoryImpl implements ArticleRepository {
+class InMemoryArticleRepository implements ArticleRepository {
   final List<ArticleEntity> _articles = [
     const ArticleEntity(
-      id: 1,
+      id: '1',
       author: 'Ada Lovelace',
       title: 'Cities can reuse water better than we think',
       description:
@@ -17,7 +17,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
           'Water reuse is no longer a futuristic idea. Municipal systems can adopt small improvements that generate measurable impact in the short term.',
     ),
     const ArticleEntity(
-      id: 2,
+      id: '2',
       author: 'Grace Hopper',
       title: 'Why public tech products need simpler writing',
       description:
@@ -29,7 +29,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
           'When interfaces are difficult to understand, the system fails before the user even starts. Clear text is product quality, not polish.',
     ),
     const ArticleEntity(
-      id: 3,
+      id: '3',
       author: 'Katherine Johnson',
       title: 'Small teams win by finishing smaller scopes',
       description:
@@ -51,7 +51,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
   }
 
   @override
-  Future<ArticleEntity?> getArticleById(int articleId) async {
+  Future<ArticleEntity?> getArticleById(String articleId) async {
     for (final article in _articles) {
       if (article.id == articleId) {
         return article;
@@ -63,7 +63,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
   @override
   Future<ArticleEntity> createArticle(ArticleEntity article) async {
     final createdArticle = ArticleEntity(
-      id: _nextId++,
+      id: (_nextId++).toString(),
       author: article.author,
       title: article.title,
       description: article.description,

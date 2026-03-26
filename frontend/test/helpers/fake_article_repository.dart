@@ -34,7 +34,7 @@ class FakeArticleRepository implements ArticleRepository {
   }
 
   @override
-  Future<ArticleEntity?> getArticleById(int articleId) async {
+  Future<ArticleEntity?> getArticleById(String articleId) async {
     if (shouldThrowOnGetArticleById) {
       throw Exception('getArticleById failed');
     }
