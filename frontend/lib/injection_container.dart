@@ -1,5 +1,8 @@
 import 'package:get_it/get_it.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/DAO/article_dao.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/app_database.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/saved_article_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
@@ -20,8 +23,17 @@ import 'package:news_app_clean_architecture/features/daily_news/presentation/blo
 final sl = GetIt.instance;
 
 Future<void> initializeDependencies() async {
+  final appDatabase =
+      await $FloorAppDatabase.databaseBuilder('app_database.db').build();
+  sl.registerSingleton<AppDatabase>(appDatabase);
+  sl.registerLazySingleton<ArticleDao>(
+    () => sl<AppDatabase>().articleDAO,
+  );
   sl.registerLazySingleton<ArticleThumbnailPickerDataSource>(
     () => ArticleThumbnailPickerDataSourceImpl(),
+  );
+  sl.registerLazySingleton<SavedArticleLocalDataSource>(
+    () => SavedArticleLocalDataSourceImpl(articleDao: sl()),
   );
   sl.registerLazySingleton<ArticleAuthRemoteDataSource>(
     () => ArticleAuthRemoteDataSourceImpl(),
@@ -36,6 +48,7 @@ Future<void> initializeDependencies() async {
     ArticleRepositoryImpl(
       authRemoteDataSource: sl(),
       firestoreRemoteDataSource: sl(),
+      savedArticleLocalDataSource: sl(),
       storageRemoteDataSource: sl(),
       thumbnailPickerDataSource: sl(),
     ),

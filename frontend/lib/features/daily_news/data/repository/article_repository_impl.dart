@@ -1,4 +1,5 @@
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/saved_article_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
@@ -14,18 +15,20 @@ class ArticleRepositoryImpl implements ArticleRepository {
   ArticleRepositoryImpl({
     required ArticleAuthRemoteDataSource authRemoteDataSource,
     required ArticleFirestoreRemoteDataSource firestoreRemoteDataSource,
+    required SavedArticleLocalDataSource savedArticleLocalDataSource,
     required ArticleStorageRemoteDataSource storageRemoteDataSource,
     required ArticleThumbnailPickerDataSource thumbnailPickerDataSource,
   })  : _authRemoteDataSource = authRemoteDataSource,
         _firestoreRemoteDataSource = firestoreRemoteDataSource,
+        _savedArticleLocalDataSource = savedArticleLocalDataSource,
         _storageRemoteDataSource = storageRemoteDataSource,
         _thumbnailPickerDataSource = thumbnailPickerDataSource;
 
   final ArticleAuthRemoteDataSource _authRemoteDataSource;
   final ArticleFirestoreRemoteDataSource _firestoreRemoteDataSource;
+  final SavedArticleLocalDataSource _savedArticleLocalDataSource;
   final ArticleStorageRemoteDataSource _storageRemoteDataSource;
   final ArticleThumbnailPickerDataSource _thumbnailPickerDataSource;
-  final List<ArticleEntity> _savedArticles = [];
 
   @override
   Future<ArticleThumbnailEntity?> pickArticleThumbnail() {
@@ -111,21 +114,22 @@ class ArticleRepositoryImpl implements ArticleRepository {
 
   @override
   Future<List<ArticleEntity>> getSavedArticles() async {
-    return List<ArticleEntity>.unmodifiable(_savedArticles);
+    return _savedArticleLocalDataSource.getSavedArticles();
   }
 
   @override
   Future<void> saveArticle(ArticleEntity article) async {
-    final alreadySaved = _savedArticles.any((item) => item.id == article.id);
+    final savedArticles = await _savedArticleLocalDataSource.getSavedArticles();
+    final alreadySaved = savedArticles.any((item) => item.id == article.id);
 
     if (!alreadySaved) {
-      _savedArticles.add(article);
+      await _savedArticleLocalDataSource.saveArticle(article);
     }
   }
 
   @override
   Future<void> removeArticle(ArticleEntity article) async {
-    _savedArticles.removeWhere((item) => item.id == article.id);
+    await _savedArticleLocalDataSource.removeArticle(article);
   }
 
   Future<List<ArticleEntity>> _mapArticles(
