@@ -1,4 +1,5 @@
 import 'package:floor/floor.dart';
+import 'package:intl/intl.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
 
 import '../../../../core/constants/constants.dart';
@@ -27,6 +28,7 @@ class ArticleModel extends ArticleEntity {
 
   factory ArticleModel.fromJson(Map<String, dynamic> map) {
     return ArticleModel(
+      id: map['id'] as String?,
       author: map['author'] ?? "",
       title: map['title'] ?? "",
       description: map['description'] ?? "",
@@ -36,6 +38,22 @@ class ArticleModel extends ArticleEntity {
           : kDefaultImage,
       publishedAt: map['publishedAt'] ?? "",
       content: map['content'] ?? "",
+    );
+  }
+
+  factory ArticleModel.fromFirestoreData(
+    Map<String, dynamic> map, {
+    String? thumbnailUrl,
+  }) {
+    return ArticleModel(
+      id: map['id'] as String?,
+      author: map['authorName'] as String? ?? '',
+      title: map['title'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      url: map['sourceUrl'] as String?,
+      urlToImage: thumbnailUrl ?? kDefaultImage,
+      publishedAt: _formatPublishedAt(map['publishedAt']),
+      content: map['content'] as String? ?? '',
     );
   }
 
@@ -50,5 +68,30 @@ class ArticleModel extends ArticleEntity {
       publishedAt: entity.publishedAt,
       content: entity.content,
     );
+  }
+
+  ArticleEntity toEntity() {
+    return ArticleEntity(
+      id: id,
+      author: author,
+      title: title,
+      description: description,
+      url: url,
+      urlToImage: urlToImage,
+      publishedAt: publishedAt,
+      content: content,
+    );
+  }
+
+  static String _formatPublishedAt(Object? value) {
+    if (value is DateTime) {
+      return DateFormat('yyyy-MM-dd').format(value);
+    }
+
+    if (value is String) {
+      return value;
+    }
+
+    return '';
   }
 }

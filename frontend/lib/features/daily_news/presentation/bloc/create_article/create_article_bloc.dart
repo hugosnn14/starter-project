@@ -108,6 +108,7 @@ class CreateArticleBloc extends Bloc<CreateArticleEvent, CreateArticleState> {
           title: event.title,
           description: event.description,
           content: event.content,
+          thumbnail: state.selectedThumbnail!,
         ),
       );
 

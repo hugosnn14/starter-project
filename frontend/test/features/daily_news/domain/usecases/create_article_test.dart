@@ -1,9 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/repository/in_memory_article_repository.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/create_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_articles.dart';
 
 void main() {
+  const thumbnail = ArticleThumbnailEntity(
+    path: '/tmp/thumbnail.jpg',
+    fileName: 'thumbnail.jpg',
+  );
+
   group('CreateArticleUseCase', () {
     test('creates a new article and prepends it to the repository list',
         () async {
@@ -17,6 +23,7 @@ void main() {
           title: 'A small vertical slice is enough',
           description: 'Keep the feature small and finished.',
           content: 'A tiny but reliable flow is easier to reason about.',
+          thumbnail: thumbnail,
         ),
       );
 

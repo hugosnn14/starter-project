@@ -1,6 +1,9 @@
 import 'package:get_it/get_it.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
-import 'package:news_app_clean_architecture/features/daily_news/data/repository/in_memory_article_repository.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/create_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_article_by_id.dart';
@@ -20,8 +23,20 @@ Future<void> initializeDependencies() async {
   sl.registerLazySingleton<ArticleThumbnailPickerDataSource>(
     () => ArticleThumbnailPickerDataSourceImpl(),
   );
+  sl.registerLazySingleton<ArticleAuthRemoteDataSource>(
+    () => ArticleAuthRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<ArticleFirestoreRemoteDataSource>(
+    () => ArticleFirestoreRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<ArticleStorageRemoteDataSource>(
+    () => ArticleStorageRemoteDataSourceImpl(),
+  );
   sl.registerSingleton<ArticleRepository>(
-    InMemoryArticleRepository(
+    ArticleRepositoryImpl(
+      authRemoteDataSource: sl(),
+      firestoreRemoteDataSource: sl(),
+      storageRemoteDataSource: sl(),
       thumbnailPickerDataSource: sl(),
     ),
   );

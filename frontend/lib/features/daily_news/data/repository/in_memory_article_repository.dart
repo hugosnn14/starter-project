@@ -74,7 +74,10 @@ class InMemoryArticleRepository implements ArticleRepository {
   }
 
   @override
-  Future<ArticleEntity> createArticle(ArticleEntity article) async {
+  Future<ArticleEntity> createArticle(
+    ArticleEntity article, {
+    required ArticleThumbnailEntity thumbnail,
+  }) async {
     final createdArticle = ArticleEntity(
       id: (_nextId++).toString(),
       author: article.author,

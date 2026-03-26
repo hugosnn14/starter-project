@@ -63,7 +63,10 @@ class FakeArticleRepository implements ArticleRepository {
   }
 
   @override
-  Future<ArticleEntity> createArticle(ArticleEntity article) async {
+  Future<ArticleEntity> createArticle(
+    ArticleEntity article, {
+    required ArticleThumbnailEntity thumbnail,
+  }) async {
     if (shouldThrowOnCreateArticle) {
       throw Exception('createArticle failed');
     }
