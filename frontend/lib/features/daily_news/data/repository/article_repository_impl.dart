@@ -49,6 +49,15 @@ class ArticleRepositoryImpl implements ArticleRepository {
   }
 
   @override
+  Future<List<ArticleEntity>> getMyArticles() async {
+    final authorId = await _authRemoteDataSource.getCurrentUserId();
+    final articleDocuments =
+        await _firestoreRemoteDataSource.getArticlesByAuthorId(authorId);
+
+    return _mapArticles(articleDocuments);
+  }
+
+  @override
   Future<ArticleEntity?> getArticleById(String articleId) async {
     final articleDocument =
         await _firestoreRemoteDataSource.getArticleById(articleId);
@@ -109,6 +118,74 @@ class ArticleRepositoryImpl implements ArticleRepository {
       publishedAt: DateTime.now().toIso8601String().split('T').first,
       content: article.content,
     );
+  }
+
+  @override
+  Future<ArticleEntity> updateArticle(
+    String articleId,
+    ArticleEntity article, {
+    ArticleThumbnailEntity? thumbnail,
+  }) async {
+    final currentArticleDocument =
+        await _firestoreRemoteDataSource.getArticleById(articleId);
+
+    if (currentArticleDocument == null) {
+      throw StateError('No se encontro el articulo a editar.');
+    }
+
+    final currentThumbnailPath =
+        currentArticleDocument['thumbnailPath'] as String?;
+    final nextThumbnailPath = _resolveNextThumbnailPath(
+      articleId: articleId,
+      currentThumbnailPath: currentThumbnailPath,
+      thumbnail: thumbnail,
+    );
+
+    if (thumbnail != null) {
+      await _storageRemoteDataSource.uploadThumbnail(
+        thumbnailPath: nextThumbnailPath!,
+        thumbnail: thumbnail,
+      );
+    }
+
+    await _firestoreRemoteDataSource.updateArticle(
+      articleId: articleId,
+      authorName: article.author ?? '',
+      title: article.title ?? '',
+      description: article.description ?? '',
+      content: article.content ?? '',
+      thumbnailPath: nextThumbnailPath,
+      sourceUrl: article.url,
+    );
+
+    final updatedArticle = await getArticleById(articleId);
+
+    if (updatedArticle != null) {
+      return updatedArticle;
+    }
+
+    final fallbackThumbnailUrl = nextThumbnailPath == null ||
+            nextThumbnailPath.isEmpty
+        ? kDefaultImage
+        : await _storageRemoteDataSource.getDownloadUrl(nextThumbnailPath);
+
+    return ArticleEntity(
+      id: articleId,
+      author: article.author,
+      title: article.title,
+      description: article.description,
+      url: article.url,
+      urlToImage: fallbackThumbnailUrl,
+      publishedAt: _formatFallbackPublishedAt(
+        currentArticleDocument['publishedAt'],
+      ),
+      content: article.content,
+    );
+  }
+
+  @override
+  Future<void> archiveArticle(String articleId) {
+    return _firestoreRemoteDataSource.archiveArticle(articleId);
   }
 
   @override
@@ -193,6 +270,30 @@ class ArticleRepositoryImpl implements ArticleRepository {
       // Best effort rollback. The original upload error remains the primary
       // failure and can be inspected during manual verification.
     }
+  }
+
+  String? _resolveNextThumbnailPath({
+    required String articleId,
+    required String? currentThumbnailPath,
+    required ArticleThumbnailEntity? thumbnail,
+  }) {
+    if (thumbnail == null) {
+      return currentThumbnailPath;
+    }
+
+    if (currentThumbnailPath != null && currentThumbnailPath.isNotEmpty) {
+      return currentThumbnailPath;
+    }
+
+    return _buildThumbnailPath(articleId, thumbnail);
+  }
+
+  String _formatFallbackPublishedAt(Object? publishedAt) {
+    if (publishedAt is DateTime) {
+      return publishedAt.toIso8601String().split('T').first;
+    }
+
+    return DateTime.now().toIso8601String().split('T').first;
   }
 
   String _buildThumbnailPath(

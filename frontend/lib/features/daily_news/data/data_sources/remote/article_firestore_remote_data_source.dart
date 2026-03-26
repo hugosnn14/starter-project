@@ -6,6 +6,8 @@ abstract class ArticleFirestoreRemoteDataSource {
 
   Future<List<Map<String, dynamic>>> getPublishedArticles();
 
+  Future<List<Map<String, dynamic>>> getArticlesByAuthorId(String authorId);
+
   Future<Map<String, dynamic>?> getArticleById(String articleId);
 
   Future<void> createArticle({
@@ -18,6 +20,18 @@ abstract class ArticleFirestoreRemoteDataSource {
     required String thumbnailPath,
     String? sourceUrl,
   });
+
+  Future<void> updateArticle({
+    required String articleId,
+    required String authorName,
+    required String title,
+    required String description,
+    required String content,
+    String? thumbnailPath,
+    String? sourceUrl,
+  });
+
+  Future<void> archiveArticle(String articleId);
 
   Future<void> deleteArticle(String articleId);
 }
@@ -43,6 +57,17 @@ class ArticleFirestoreRemoteDataSourceImpl
     final querySnapshot = await _articlesCollection
         .where('status', isEqualTo: 'published')
         .orderBy('publishedAt', descending: true)
+        .get();
+
+    return querySnapshot.docs.map(_normalizeArticleDocument).toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getArticlesByAuthorId(
+      String authorId) async {
+    final querySnapshot = await _articlesCollection
+        .where('authorId', isEqualTo: authorId)
+        .orderBy('createdAt', descending: true)
         .get();
 
     return querySnapshot.docs.map(_normalizeArticleDocument).toList();
@@ -84,6 +109,35 @@ class ArticleFirestoreRemoteDataSourceImpl
       'updatedAt': FieldValue.serverTimestamp(),
       'sourceUrl': sourceUrl,
       'tags': const <String>[],
+    });
+  }
+
+  @override
+  Future<void> updateArticle({
+    required String articleId,
+    required String authorName,
+    required String title,
+    required String description,
+    required String content,
+    String? thumbnailPath,
+    String? sourceUrl,
+  }) {
+    return _articlesCollection.doc(articleId).update({
+      'authorName': authorName,
+      'title': title,
+      'description': description,
+      'content': content,
+      'thumbnailPath': thumbnailPath,
+      'sourceUrl': sourceUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> archiveArticle(String articleId) {
+    return _articlesCollection.doc(articleId).update({
+      'status': 'archived',
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 

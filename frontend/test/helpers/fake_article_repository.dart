@@ -21,6 +21,9 @@ class FakeArticleRepository implements ArticleRepository {
     this.shouldThrowOnGetArticleDraft = false,
     this.shouldThrowOnSaveArticleDraft = false,
     this.shouldThrowOnClearArticleDraft = false,
+    this.shouldThrowOnGetMyArticles = false,
+    this.shouldThrowOnUpdateArticle = false,
+    this.shouldThrowOnArchiveArticle = false,
   })  : _articles = List<ArticleEntity>.of(articles),
         _savedArticles = List<ArticleEntity>.of(savedArticles),
         _draft = draft;
@@ -40,6 +43,9 @@ class FakeArticleRepository implements ArticleRepository {
   final bool shouldThrowOnGetArticleDraft;
   final bool shouldThrowOnSaveArticleDraft;
   final bool shouldThrowOnClearArticleDraft;
+  final bool shouldThrowOnGetMyArticles;
+  final bool shouldThrowOnUpdateArticle;
+  final bool shouldThrowOnArchiveArticle;
 
   @override
   Future<ArticleThumbnailEntity?> pickArticleThumbnail() async {
@@ -54,6 +60,15 @@ class FakeArticleRepository implements ArticleRepository {
   Future<List<ArticleEntity>> getArticles() async {
     if (shouldThrowOnGetArticles) {
       throw Exception('getArticles failed');
+    }
+
+    return List<ArticleEntity>.unmodifiable(_articles);
+  }
+
+  @override
+  Future<List<ArticleEntity>> getMyArticles() async {
+    if (shouldThrowOnGetMyArticles) {
+      throw Exception('getMyArticles failed');
     }
 
     return List<ArticleEntity>.unmodifiable(_articles);
@@ -89,6 +104,46 @@ class FakeArticleRepository implements ArticleRepository {
 
     _articles.add(article);
     return article;
+  }
+
+  @override
+  Future<ArticleEntity> updateArticle(
+    String articleId,
+    ArticleEntity article, {
+    ArticleThumbnailEntity? thumbnail,
+  }) async {
+    if (shouldThrowOnUpdateArticle) {
+      throw Exception('updateArticle failed');
+    }
+
+    final index = _articles.indexWhere((item) => item.id == articleId);
+    if (index == -1) {
+      throw StateError('Article not found');
+    }
+
+    final currentArticle = _articles[index];
+    final updatedArticle = ArticleEntity(
+      id: articleId,
+      author: article.author,
+      title: article.title,
+      description: article.description,
+      url: article.url,
+      urlToImage: currentArticle.urlToImage,
+      publishedAt: currentArticle.publishedAt,
+      content: article.content,
+    );
+
+    _articles[index] = updatedArticle;
+    return updatedArticle;
+  }
+
+  @override
+  Future<void> archiveArticle(String articleId) async {
+    if (shouldThrowOnArchiveArticle) {
+      throw Exception('archiveArticle failed');
+    }
+
+    _articles.removeWhere((item) => item.id == articleId);
   }
 
   @override

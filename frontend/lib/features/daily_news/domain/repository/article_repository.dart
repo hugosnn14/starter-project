@@ -8,12 +8,22 @@ abstract class ArticleRepository {
 
   Future<List<ArticleEntity>> getArticles();
 
+  Future<List<ArticleEntity>> getMyArticles();
+
   Future<ArticleEntity?> getArticleById(String articleId);
 
   Future<ArticleEntity> createArticle(
     ArticleEntity article, {
     required ArticleThumbnailEntity thumbnail,
   });
+
+  Future<ArticleEntity> updateArticle(
+    String articleId,
+    ArticleEntity article, {
+    ArticleThumbnailEntity? thumbnail,
+  });
+
+  Future<void> archiveArticle(String articleId);
 
   // Legacy API kept so previous files remain available in the tree.
   Future<DataState<List<ArticleEntity>>> getNewsArticles();

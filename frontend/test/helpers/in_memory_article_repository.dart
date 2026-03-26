@@ -66,6 +66,11 @@ class InMemoryArticleRepository implements ArticleRepository {
   }
 
   @override
+  Future<List<ArticleEntity>> getMyArticles() async {
+    return List.unmodifiable(_articles);
+  }
+
+  @override
   Future<ArticleEntity?> getArticleById(String articleId) async {
     for (final article in _articles) {
       if (article.id == articleId) {
@@ -95,6 +100,38 @@ class InMemoryArticleRepository implements ArticleRepository {
     _articles.insert(0, createdArticle);
 
     return createdArticle;
+  }
+
+  @override
+  Future<ArticleEntity> updateArticle(
+    String articleId,
+    ArticleEntity article, {
+    ArticleThumbnailEntity? thumbnail,
+  }) async {
+    final index = _articles.indexWhere((item) => item.id == articleId);
+    if (index == -1) {
+      throw StateError('Article not found');
+    }
+
+    final currentArticle = _articles[index];
+    final updatedArticle = ArticleEntity(
+      id: currentArticle.id,
+      author: article.author,
+      title: article.title,
+      description: article.description,
+      url: article.url,
+      urlToImage: currentArticle.urlToImage,
+      publishedAt: currentArticle.publishedAt,
+      content: article.content,
+    );
+
+    _articles[index] = updatedArticle;
+    return updatedArticle;
+  }
+
+  @override
+  Future<void> archiveArticle(String articleId) async {
+    _articles.removeWhere((item) => item.id == articleId);
   }
 
   @override

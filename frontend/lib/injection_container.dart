@@ -10,16 +10,19 @@ import 'package:news_app_clean_architecture/features/daily_news/data/data_source
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/archive_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/clear_article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/create_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_article_by_id.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_articles.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_my_articles.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_saved_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/remove_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/save_article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/save_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/select_article_thumbnail.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/update_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article_details/article_details_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
@@ -71,15 +74,18 @@ Future<void> initializeDependencies() async {
   sl.registerSingleton<SelectArticleThumbnailUseCase>(
     SelectArticleThumbnailUseCase(sl()),
   );
+  sl.registerSingleton<ArchiveArticleUseCase>(ArchiveArticleUseCase(sl()));
   sl.registerSingleton<GetArticlesUseCase>(GetArticlesUseCase(sl()));
   sl.registerSingleton<GetArticleByIdUseCase>(GetArticleByIdUseCase(sl()));
   sl.registerSingleton<GetArticleDraftUseCase>(GetArticleDraftUseCase(sl()));
+  sl.registerSingleton<GetMyArticlesUseCase>(GetMyArticlesUseCase(sl()));
   sl.registerSingleton<GetSavedArticleUseCase>(GetSavedArticleUseCase(sl()));
   sl.registerSingleton<SaveArticleDraftUseCase>(SaveArticleDraftUseCase(sl()));
   sl.registerSingleton<SaveArticleUseCase>(SaveArticleUseCase(sl()));
   sl.registerSingleton<ClearArticleDraftUseCase>(
       ClearArticleDraftUseCase(sl()));
   sl.registerSingleton<RemoveArticleUseCase>(RemoveArticleUseCase(sl()));
+  sl.registerSingleton<UpdateArticleUseCase>(UpdateArticleUseCase(sl()));
 
   // Production DI only wires the Firebase-backed article flow.
   // Test fixtures and legacy implementations stay outside this container.
