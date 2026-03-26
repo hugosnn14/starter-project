@@ -1,9 +1,12 @@
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_draft_local_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/saved_article_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/models/article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 
@@ -13,19 +16,24 @@ import '../../../../core/resources/data_state.dart';
 class ArticleRepositoryImpl implements ArticleRepository {
   ArticleRepositoryImpl({
     required ArticleAuthRemoteDataSource authRemoteDataSource,
+    required ArticleDraftLocalDataSource articleDraftLocalDataSource,
     required ArticleFirestoreRemoteDataSource firestoreRemoteDataSource,
+    required SavedArticleLocalDataSource savedArticleLocalDataSource,
     required ArticleStorageRemoteDataSource storageRemoteDataSource,
     required ArticleThumbnailPickerDataSource thumbnailPickerDataSource,
   })  : _authRemoteDataSource = authRemoteDataSource,
+        _articleDraftLocalDataSource = articleDraftLocalDataSource,
         _firestoreRemoteDataSource = firestoreRemoteDataSource,
+        _savedArticleLocalDataSource = savedArticleLocalDataSource,
         _storageRemoteDataSource = storageRemoteDataSource,
         _thumbnailPickerDataSource = thumbnailPickerDataSource;
 
   final ArticleAuthRemoteDataSource _authRemoteDataSource;
+  final ArticleDraftLocalDataSource _articleDraftLocalDataSource;
   final ArticleFirestoreRemoteDataSource _firestoreRemoteDataSource;
+  final SavedArticleLocalDataSource _savedArticleLocalDataSource;
   final ArticleStorageRemoteDataSource _storageRemoteDataSource;
   final ArticleThumbnailPickerDataSource _thumbnailPickerDataSource;
-  final List<ArticleEntity> _savedArticles = [];
 
   @override
   Future<ArticleThumbnailEntity?> pickArticleThumbnail() {
@@ -36,6 +44,15 @@ class ArticleRepositoryImpl implements ArticleRepository {
   Future<List<ArticleEntity>> getArticles() async {
     final articleDocuments =
         await _firestoreRemoteDataSource.getPublishedArticles();
+
+    return _mapArticles(articleDocuments);
+  }
+
+  @override
+  Future<List<ArticleEntity>> getMyArticles() async {
+    final authorId = await _authRemoteDataSource.getCurrentUserId();
+    final articleDocuments =
+        await _firestoreRemoteDataSource.getArticlesByAuthorId(authorId);
 
     return _mapArticles(articleDocuments);
   }
@@ -98,8 +115,83 @@ class ArticleRepositoryImpl implements ArticleRepository {
       description: article.description,
       url: article.url,
       urlToImage: fallbackThumbnailUrl,
+      thumbnailPath: thumbnailPath,
       publishedAt: DateTime.now().toIso8601String().split('T').first,
       content: article.content,
+      status: 'published',
+    );
+  }
+
+  @override
+  Future<ArticleEntity> updateArticle(
+    String articleId,
+    ArticleEntity article, {
+    ArticleThumbnailEntity? thumbnail,
+  }) async {
+    final currentArticleDocument =
+        await _firestoreRemoteDataSource.getArticleById(articleId);
+
+    if (currentArticleDocument == null) {
+      throw StateError('No se encontro el articulo a editar.');
+    }
+
+    final currentThumbnailPath =
+        currentArticleDocument['thumbnailPath'] as String?;
+    final nextThumbnailPath = _resolveNextThumbnailPath(
+      articleId: articleId,
+      currentThumbnailPath: currentThumbnailPath,
+      thumbnail: thumbnail,
+    );
+
+    if (thumbnail != null) {
+      await _storageRemoteDataSource.uploadThumbnail(
+        thumbnailPath: nextThumbnailPath!,
+        thumbnail: thumbnail,
+      );
+    }
+
+    await _firestoreRemoteDataSource.updateArticle(
+      articleId: articleId,
+      authorName: article.author ?? '',
+      title: article.title ?? '',
+      description: article.description ?? '',
+      content: article.content ?? '',
+      thumbnailPath: nextThumbnailPath,
+      sourceUrl: article.url,
+    );
+
+    final updatedArticle = await getArticleById(articleId);
+
+    if (updatedArticle != null) {
+      return updatedArticle;
+    }
+
+    final fallbackThumbnailUrl =
+        nextThumbnailPath == null || nextThumbnailPath.isEmpty
+            ? kDefaultImage
+            : await _storageRemoteDataSource.getDownloadUrl(nextThumbnailPath);
+
+    return ArticleEntity(
+      id: articleId,
+      author: article.author,
+      title: article.title,
+      description: article.description,
+      url: article.url,
+      urlToImage: fallbackThumbnailUrl,
+      thumbnailPath: nextThumbnailPath,
+      publishedAt: _formatFallbackPublishedAt(
+        currentArticleDocument['publishedAt'],
+      ),
+      content: article.content,
+      status: currentArticleDocument['status'] as String? ?? 'published',
+    );
+  }
+
+  @override
+  Future<void> archiveArticle(String articleId) async {
+    await _firestoreRemoteDataSource.archiveArticle(articleId);
+    await _savedArticleLocalDataSource.removeArticle(
+      ArticleEntity(id: articleId),
     );
   }
 
@@ -111,21 +203,37 @@ class ArticleRepositoryImpl implements ArticleRepository {
 
   @override
   Future<List<ArticleEntity>> getSavedArticles() async {
-    return List<ArticleEntity>.unmodifiable(_savedArticles);
+    return _savedArticleLocalDataSource.getSavedArticles();
   }
 
   @override
   Future<void> saveArticle(ArticleEntity article) async {
-    final alreadySaved = _savedArticles.any((item) => item.id == article.id);
+    final savedArticles = await _savedArticleLocalDataSource.getSavedArticles();
+    final alreadySaved = savedArticles.any((item) => item.id == article.id);
 
     if (!alreadySaved) {
-      _savedArticles.add(article);
+      await _savedArticleLocalDataSource.saveArticle(article);
     }
   }
 
   @override
   Future<void> removeArticle(ArticleEntity article) async {
-    _savedArticles.removeWhere((item) => item.id == article.id);
+    await _savedArticleLocalDataSource.removeArticle(article);
+  }
+
+  @override
+  Future<ArticleDraftEntity?> getArticleDraft(String draftKey) {
+    return _articleDraftLocalDataSource.getDraft(draftKey);
+  }
+
+  @override
+  Future<void> saveArticleDraft(ArticleDraftEntity draft) {
+    return _articleDraftLocalDataSource.saveDraft(draft);
+  }
+
+  @override
+  Future<void> clearArticleDraft(String draftKey) {
+    return _articleDraftLocalDataSource.clearDraft(draftKey);
   }
 
   Future<List<ArticleEntity>> _mapArticles(
@@ -169,6 +277,30 @@ class ArticleRepositoryImpl implements ArticleRepository {
       // Best effort rollback. The original upload error remains the primary
       // failure and can be inspected during manual verification.
     }
+  }
+
+  String? _resolveNextThumbnailPath({
+    required String articleId,
+    required String? currentThumbnailPath,
+    required ArticleThumbnailEntity? thumbnail,
+  }) {
+    if (thumbnail == null) {
+      return currentThumbnailPath;
+    }
+
+    if (currentThumbnailPath != null && currentThumbnailPath.isNotEmpty) {
+      return currentThumbnailPath;
+    }
+
+    return _buildThumbnailPath(articleId, thumbnail);
+  }
+
+  String _formatFallbackPublishedAt(Object? publishedAt) {
+    if (publishedAt is DateTime) {
+      return publishedAt.toIso8601String().split('T').first;
+    }
+
+    return DateTime.now().toIso8601String().split('T').first;
   }
 
   String _buildThumbnailPath(

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/archive_article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_my_articles.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_event.dart';
+import 'package:news_app_clean_architecture/injection_container.dart';
 
 import '../../../../../config/theme/app_themes.dart';
 import '../../../domain/entities/article.dart';
@@ -64,6 +69,7 @@ class ArticleDetailsView extends StatelessWidget {
         style: Theme.of(context).textTheme.titleMedium,
       ),
       actions: [
+        if (article != null) _OwnArticleArchiveAction(article: article),
         if (article != null) _buildSavedAction(context, article),
         const SizedBox(width: 8),
       ],
@@ -252,5 +258,111 @@ class ArticleDetailsView extends StatelessWidget {
     }
 
     bloc.add(SavedArticleStored(article));
+  }
+}
+
+class _OwnArticleArchiveAction extends StatefulWidget {
+  const _OwnArticleArchiveAction({
+    required this.article,
+  });
+
+  final ArticleEntity article;
+
+  @override
+  State<_OwnArticleArchiveAction> createState() =>
+      _OwnArticleArchiveActionState();
+}
+
+class _OwnArticleArchiveActionState extends State<_OwnArticleArchiveAction> {
+  late Future<bool> _isOwnArticleFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _isOwnArticleFuture = _loadIsOwnArticle();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.article.status == 'archived') {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<bool>(
+      future: _isOwnArticleFuture,
+      builder: (context, snapshot) {
+        if (snapshot.data != true) {
+          return const SizedBox.shrink();
+        }
+
+        return IconButton(
+          tooltip: 'Archive article',
+          onPressed: _archiveArticle,
+          icon: const Icon(Icons.archive_outlined),
+        );
+      },
+    );
+  }
+
+  Future<bool> _loadIsOwnArticle() async {
+    final articleId = widget.article.id;
+    if (articleId == null) {
+      return false;
+    }
+
+    final myArticles = await sl<GetMyArticlesUseCase>()();
+    return myArticles.any((article) => article.id == articleId);
+  }
+
+  Future<void> _archiveArticle() async {
+    final articleId = widget.article.id;
+    if (articleId == null) {
+      return;
+    }
+
+    final shouldArchive = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Archive article?'),
+            content: Text(
+              '“${widget.article.title ?? 'This article'}” will be removed from the public feed.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Archive'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldArchive || !mounted) {
+      return;
+    }
+
+    try {
+      await sl<ArchiveArticleUseCase>()(params: articleId);
+      if (!mounted) {
+        return;
+      }
+
+      context.read<ArticlesBloc>().add(const LoadArticles());
+      Navigator.pop(context, true);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The article could not be archived.'),
+        ),
+      );
+    }
   }
 }

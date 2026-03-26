@@ -13,8 +13,10 @@ class ArticleModel extends ArticleEntity {
     String? description,
     String? url,
     String? urlToImage,
+    String? thumbnailPath,
     String? publishedAt,
     String? content,
+    String? status,
   }) : super(
           id: id,
           author: author,
@@ -22,8 +24,10 @@ class ArticleModel extends ArticleEntity {
           description: description,
           url: url,
           urlToImage: urlToImage,
+          thumbnailPath: thumbnailPath,
           publishedAt: publishedAt,
           content: content,
+          status: status,
         );
 
   factory ArticleModel.fromJson(Map<String, dynamic> map) {
@@ -36,8 +40,10 @@ class ArticleModel extends ArticleEntity {
       urlToImage: map['urlToImage'] != null && map['urlToImage'] != ""
           ? map['urlToImage']
           : kDefaultImage,
+      thumbnailPath: map['thumbnailPath'] as String?,
       publishedAt: map['publishedAt'] ?? "",
       content: map['content'] ?? "",
+      status: map['status'] as String?,
     );
   }
 
@@ -52,8 +58,10 @@ class ArticleModel extends ArticleEntity {
       description: map['description'] as String? ?? '',
       url: map['sourceUrl'] as String?,
       urlToImage: thumbnailUrl ?? kDefaultImage,
+      thumbnailPath: map['thumbnailPath'] as String?,
       publishedAt: _formatPublishedAt(map['publishedAt']),
       content: map['content'] as String? ?? '',
+      status: map['status'] as String? ?? 'published',
     );
   }
 
@@ -65,8 +73,10 @@ class ArticleModel extends ArticleEntity {
       description: entity.description,
       url: entity.url,
       urlToImage: entity.urlToImage,
+      thumbnailPath: entity.thumbnailPath,
       publishedAt: entity.publishedAt,
       content: entity.content,
+      status: entity.status,
     );
   }
 
@@ -78,8 +88,10 @@ class ArticleModel extends ArticleEntity {
       description: description,
       url: url,
       urlToImage: urlToImage,
+      thumbnailPath: thumbnailPath,
       publishedAt: publishedAt,
       content: content,
+      status: status,
     );
   }
 

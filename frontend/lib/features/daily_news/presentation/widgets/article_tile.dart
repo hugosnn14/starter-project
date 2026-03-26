@@ -221,6 +221,10 @@ class ArticleWidget extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (badgeLabel != null) ...[
+              _buildInlineBadge(context, badgeLabel!),
+              const SizedBox(height: 10),
+            ],
             // Title
             Text(
               article.title ?? '',
@@ -257,6 +261,25 @@ class ArticleWidget extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInlineBadge(BuildContext context, String label) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppPalette.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: textTheme.labelMedium?.copyWith(
+          color: AppPalette.onSecondaryContainer,
+          letterSpacing: 0.6,
         ),
       ),
     );

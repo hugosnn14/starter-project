@@ -1,5 +1,6 @@
 import 'package:news_app_clean_architecture/core/resources/data_state.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 
@@ -16,11 +17,20 @@ class FakeArticleRepository implements ArticleRepository {
     this.shouldThrowOnGetSavedArticles = false,
     this.shouldThrowOnSaveArticle = false,
     this.shouldThrowOnRemoveArticle = false,
+    ArticleDraftEntity? draft,
+    this.shouldThrowOnGetArticleDraft = false,
+    this.shouldThrowOnSaveArticleDraft = false,
+    this.shouldThrowOnClearArticleDraft = false,
+    this.shouldThrowOnGetMyArticles = false,
+    this.shouldThrowOnUpdateArticle = false,
+    this.shouldThrowOnArchiveArticle = false,
   })  : _articles = List<ArticleEntity>.of(articles),
-        _savedArticles = List<ArticleEntity>.of(savedArticles);
+        _savedArticles = List<ArticleEntity>.of(savedArticles),
+        _draft = draft;
 
   final List<ArticleEntity> _articles;
   final List<ArticleEntity> _savedArticles;
+  ArticleDraftEntity? _draft;
   final ArticleThumbnailEntity? pickedThumbnail;
   final bool shouldThrowOnGetArticles;
   final bool shouldThrowOnPickArticleThumbnail;
@@ -30,6 +40,12 @@ class FakeArticleRepository implements ArticleRepository {
   final bool shouldThrowOnGetSavedArticles;
   final bool shouldThrowOnSaveArticle;
   final bool shouldThrowOnRemoveArticle;
+  final bool shouldThrowOnGetArticleDraft;
+  final bool shouldThrowOnSaveArticleDraft;
+  final bool shouldThrowOnClearArticleDraft;
+  final bool shouldThrowOnGetMyArticles;
+  final bool shouldThrowOnUpdateArticle;
+  final bool shouldThrowOnArchiveArticle;
 
   @override
   Future<ArticleThumbnailEntity?> pickArticleThumbnail() async {
@@ -44,6 +60,15 @@ class FakeArticleRepository implements ArticleRepository {
   Future<List<ArticleEntity>> getArticles() async {
     if (shouldThrowOnGetArticles) {
       throw Exception('getArticles failed');
+    }
+
+    return List<ArticleEntity>.unmodifiable(_articles);
+  }
+
+  @override
+  Future<List<ArticleEntity>> getMyArticles() async {
+    if (shouldThrowOnGetMyArticles) {
+      throw Exception('getMyArticles failed');
     }
 
     return List<ArticleEntity>.unmodifiable(_articles);
@@ -82,6 +107,49 @@ class FakeArticleRepository implements ArticleRepository {
   }
 
   @override
+  Future<ArticleEntity> updateArticle(
+    String articleId,
+    ArticleEntity article, {
+    ArticleThumbnailEntity? thumbnail,
+  }) async {
+    if (shouldThrowOnUpdateArticle) {
+      throw Exception('updateArticle failed');
+    }
+
+    final index = _articles.indexWhere((item) => item.id == articleId);
+    if (index == -1) {
+      throw StateError('Article not found');
+    }
+
+    final currentArticle = _articles[index];
+    final updatedArticle = ArticleEntity(
+      id: articleId,
+      author: article.author,
+      title: article.title,
+      description: article.description,
+      url: article.url,
+      urlToImage: currentArticle.urlToImage,
+      thumbnailPath: currentArticle.thumbnailPath,
+      publishedAt: currentArticle.publishedAt,
+      content: article.content,
+      status: currentArticle.status,
+    );
+
+    _articles[index] = updatedArticle;
+    return updatedArticle;
+  }
+
+  @override
+  Future<void> archiveArticle(String articleId) async {
+    if (shouldThrowOnArchiveArticle) {
+      throw Exception('archiveArticle failed');
+    }
+
+    _articles.removeWhere((item) => item.id == articleId);
+    _savedArticles.removeWhere((item) => item.id == articleId);
+  }
+
+  @override
   Future<DataState<List<ArticleEntity>>> getNewsArticles() async {
     return DataSuccess<List<ArticleEntity>>(
       List<ArticleEntity>.unmodifiable(_articles),
@@ -113,5 +181,38 @@ class FakeArticleRepository implements ArticleRepository {
     }
 
     _savedArticles.removeWhere((item) => item.id == article.id);
+  }
+
+  @override
+  Future<ArticleDraftEntity?> getArticleDraft(String draftKey) async {
+    if (shouldThrowOnGetArticleDraft) {
+      throw Exception('getArticleDraft failed');
+    }
+
+    if (_draft?.draftKey != draftKey) {
+      return null;
+    }
+
+    return _draft;
+  }
+
+  @override
+  Future<void> saveArticleDraft(ArticleDraftEntity draft) async {
+    if (shouldThrowOnSaveArticleDraft) {
+      throw Exception('saveArticleDraft failed');
+    }
+
+    _draft = draft;
+  }
+
+  @override
+  Future<void> clearArticleDraft(String draftKey) async {
+    if (shouldThrowOnClearArticleDraft) {
+      throw Exception('clearArticleDraft failed');
+    }
+
+    if (_draft?.draftKey == draftKey) {
+      _draft = null;
+    }
   }
 }

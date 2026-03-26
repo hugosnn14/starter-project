@@ -61,6 +61,11 @@ class DailyNews extends StatelessWidget {
       ),
       actions: [
         IconButton(
+          tooltip: 'My articles',
+          onPressed: () => _onMyArticlesPressed(context),
+          icon: const Icon(Icons.edit_note_rounded),
+        ),
+        IconButton(
           tooltip: 'Saved articles',
           onPressed: () => _onSavedArticlesPressed(context),
           icon: const Icon(Icons.bookmark_border_rounded),
@@ -234,6 +239,13 @@ class DailyNews extends StatelessWidget {
     Navigator.pushNamed(
       context,
       AppRoutes.savedArticles,
+    );
+  }
+
+  void _onMyArticlesPressed(BuildContext context) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.myArticles,
     );
   }
 

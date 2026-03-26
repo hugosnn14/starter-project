@@ -7,6 +7,48 @@ abstract class CreateArticleEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+class LoadArticleDraftRequested extends CreateArticleEvent {
+  const LoadArticleDraftRequested({
+    required this.draftKey,
+  });
+
+  final String draftKey;
+
+  @override
+  List<Object?> get props => [draftKey];
+}
+
+class PersistArticleDraftRequested extends CreateArticleEvent {
+  const PersistArticleDraftRequested({
+    required this.draftKey,
+    required this.authorName,
+    required this.title,
+    required this.description,
+    required this.content,
+    this.thumbnailPath,
+    this.clearSelectedThumbnail = false,
+  });
+
+  final String draftKey;
+  final String authorName;
+  final String title;
+  final String description;
+  final String content;
+  final String? thumbnailPath;
+  final bool clearSelectedThumbnail;
+
+  @override
+  List<Object?> get props => [
+        draftKey,
+        authorName,
+        title,
+        description,
+        content,
+        thumbnailPath,
+        clearSelectedThumbnail,
+      ];
+}
+
 class SelectArticleThumbnailRequested extends CreateArticleEvent {
   const SelectArticleThumbnailRequested();
 }
@@ -20,16 +62,30 @@ class SubmitCreateArticle extends CreateArticleEvent {
   final String title;
   final String description;
   final String content;
+  final String? articleId;
+  final String? sourceUrl;
+  final bool isEditing;
 
   const SubmitCreateArticle({
     required this.authorName,
     required this.title,
     required this.description,
     required this.content,
+    this.articleId,
+    this.sourceUrl,
+    this.isEditing = false,
   });
 
   @override
-  List<Object?> get props => [authorName, title, description, content];
+  List<Object?> get props => [
+        authorName,
+        title,
+        description,
+        content,
+        articleId,
+        sourceUrl,
+        isEditing,
+      ];
 }
 
 class ResetCreateArticle extends CreateArticleEvent {

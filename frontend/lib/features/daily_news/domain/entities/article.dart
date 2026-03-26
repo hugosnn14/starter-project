@@ -7,8 +7,10 @@ class ArticleEntity extends Equatable {
   final String? description;
   final String? url;
   final String? urlToImage;
+  final String? thumbnailPath;
   final String? publishedAt;
   final String? content;
+  final String? status;
 
   const ArticleEntity({
     this.id,
@@ -17,8 +19,10 @@ class ArticleEntity extends Equatable {
     this.description,
     this.url,
     this.urlToImage,
+    this.thumbnailPath,
     this.publishedAt,
     this.content,
+    this.status,
   });
 
   @override
@@ -30,8 +34,10 @@ class ArticleEntity extends Equatable {
       description,
       url,
       urlToImage,
+      thumbnailPath,
       publishedAt,
       content,
+      status,
     ];
   }
 }
