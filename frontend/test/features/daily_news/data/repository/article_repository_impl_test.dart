@@ -14,16 +14,18 @@ import 'package:news_app_clean_architecture/features/daily_news/domain/entities/
 void main() {
   late ArticleRepositoryImpl repository;
   late _FakeArticleFirestoreRemoteDataSource firestoreRemoteDataSource;
+  late _FakeSavedArticleLocalDataSource savedArticleLocalDataSource;
   late _FakeArticleStorageRemoteDataSource storageRemoteDataSource;
 
   setUp(() {
     firestoreRemoteDataSource = _FakeArticleFirestoreRemoteDataSource();
+    savedArticleLocalDataSource = _FakeSavedArticleLocalDataSource();
     storageRemoteDataSource = _FakeArticleStorageRemoteDataSource();
     repository = ArticleRepositoryImpl(
       authRemoteDataSource: _FakeArticleAuthRemoteDataSource(),
       articleDraftLocalDataSource: _FakeArticleDraftLocalDataSource(),
       firestoreRemoteDataSource: firestoreRemoteDataSource,
-      savedArticleLocalDataSource: _FakeSavedArticleLocalDataSource(),
+      savedArticleLocalDataSource: savedArticleLocalDataSource,
       storageRemoteDataSource: storageRemoteDataSource,
       thumbnailPickerDataSource: _FakeArticleThumbnailPickerDataSource(),
     );
@@ -144,6 +146,7 @@ void main() {
 
     expect(firestoreRemoteDataSource.archivedArticleIds, ['article-9']);
     expect(firestoreRemoteDataSource.deletedArticleIds, isEmpty);
+    expect(savedArticleLocalDataSource.removedArticleIds, ['article-9']);
   });
 }
 
@@ -253,11 +256,15 @@ class _FakeArticleFirestoreRemoteDataSource
 }
 
 class _FakeSavedArticleLocalDataSource implements SavedArticleLocalDataSource {
+  final List<String?> removedArticleIds = [];
+
   @override
   Future<List<ArticleEntity>> getSavedArticles() async => const [];
 
   @override
-  Future<void> removeArticle(ArticleEntity article) async {}
+  Future<void> removeArticle(ArticleEntity article) async {
+    removedArticleIds.add(article.id);
+  }
 
   @override
   Future<void> saveArticle(ArticleEntity article) async {}

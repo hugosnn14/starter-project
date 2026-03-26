@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:news_app_clean_architecture/config/routes/routes.dart';
 import 'package:news_app_clean_architecture/config/theme/app_themes.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/archive_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_my_articles.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_event.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/widgets/article_tile.dart';
 import 'package:news_app_clean_architecture/injection_container.dart';
 
@@ -74,10 +78,13 @@ class _MyArticlesPageState extends State<MyArticlesPage> {
                 ),
                 const SizedBox(height: 20),
                 ...articles.map(
-                  (article) => ArticleWidget(
+                  (article) => _MyArticleListItem(
                     article: article,
                     badgeLabel: _statusLabel(article.status),
-                    onArticlePressed: (_) => _openEditArticle(article),
+                    onEdit: () => _openEditArticle(article),
+                    onArchive: article.status == 'archived'
+                        ? null
+                        : () => _archiveArticle(article),
                   ),
                 ),
               ],
@@ -198,6 +205,63 @@ class _MyArticlesPageState extends State<MyArticlesPage> {
     });
   }
 
+  Future<void> _archiveArticle(ArticleEntity article) async {
+    final articleId = article.id;
+    if (articleId == null) {
+      return;
+    }
+
+    final shouldArchive = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Archive article?'),
+            content: Text(
+              '“${article.title ?? 'This article'}” will leave the public feed and remain in your desk as archived.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Archive'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldArchive || !mounted) {
+      return;
+    }
+
+    try {
+      await sl<ArchiveArticleUseCase>()(params: articleId);
+      if (!mounted) {
+        return;
+      }
+
+      context.read<ArticlesBloc>().add(const LoadArticles());
+      _retryArticles();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Article archived.'),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The article could not be archived.'),
+        ),
+      );
+    }
+  }
+
   String _statusLabel(String? status) {
     switch (status) {
       case 'archived':
@@ -207,6 +271,55 @@ class _MyArticlesPageState extends State<MyArticlesPage> {
       default:
         return 'Published';
     }
+  }
+}
+
+class _MyArticleListItem extends StatelessWidget {
+  const _MyArticleListItem({
+    required this.article,
+    required this.badgeLabel,
+    required this.onEdit,
+    this.onArchive,
+  });
+
+  final ArticleEntity article;
+  final String badgeLabel;
+  final VoidCallback onEdit;
+  final VoidCallback? onArchive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ArticleWidget(
+          article: article,
+          badgeLabel: badgeLabel,
+          onArticlePressed: (_) => onEdit(),
+          margin: const EdgeInsets.only(bottom: 10),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 18),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Edit'),
+              ),
+              if (onArchive != null)
+                TextButton.icon(
+                  onPressed: onArchive,
+                  icon: const Icon(Icons.archive_outlined),
+                  label: const Text('Archive'),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

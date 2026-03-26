@@ -142,6 +142,7 @@ class InMemoryArticleRepository implements ArticleRepository {
   @override
   Future<void> archiveArticle(String articleId) async {
     _articles.removeWhere((item) => item.id == articleId);
+    _savedArticles.removeWhere((item) => item.id == articleId);
   }
 
   @override

@@ -188,8 +188,11 @@ class ArticleRepositoryImpl implements ArticleRepository {
   }
 
   @override
-  Future<void> archiveArticle(String articleId) {
-    return _firestoreRemoteDataSource.archiveArticle(articleId);
+  Future<void> archiveArticle(String articleId) async {
+    await _firestoreRemoteDataSource.archiveArticle(articleId);
+    await _savedArticleLocalDataSource.removeArticle(
+      ArticleEntity(id: articleId),
+    );
   }
 
   @override

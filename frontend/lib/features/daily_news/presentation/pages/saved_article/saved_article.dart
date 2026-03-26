@@ -186,7 +186,11 @@ class SavedArticles extends StatelessWidget {
       context,
       AppRoutes.articleDetails,
       arguments: articleId,
-    );
+    ).then((result) {
+      if (result == true) {
+        _reloadSavedArticles(context);
+      }
+    });
   }
 
   void _showMissingArticleIdMessage(BuildContext context) {
