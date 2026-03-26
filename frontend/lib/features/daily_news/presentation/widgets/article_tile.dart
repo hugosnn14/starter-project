@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import '../../../../config/theme/app_themes.dart';
 import '../../domain/entities/article.dart';
 
 class ArticleWidget extends StatelessWidget {
@@ -10,12 +12,12 @@ class ArticleWidget extends StatelessWidget {
   final void Function(ArticleEntity article)? onArticlePressed;
 
   const ArticleWidget({
-    Key? key,
+    super.key,
     this.article,
     this.onArticlePressed,
     this.isRemovable = false,
     this.onRemove,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,15 +25,28 @@ class ArticleWidget extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: _onTap,
       child: Container(
-        padding: const EdgeInsetsDirectional.only(
-            start: 14, end: 14, bottom: 7, top: 7),
-        height: MediaQuery.of(context).size.width / 2.2,
-        child: Row(
-          children: [
-            _buildImage(context),
-            _buildTitleAndDescription(),
-            _buildRemovableArea(),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppPalette.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: AppPalette.shadow,
+              blurRadius: 24,
+              offset: Offset(0, 12),
+            ),
           ],
+        ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.width / 2.5,
+          child: Row(
+            children: [
+              _buildImage(context),
+              _buildTitleAndDescription(context),
+              _buildRemovableArea(),
+            ],
+          ),
         ),
       ),
     );
@@ -48,7 +63,7 @@ class ArticleWidget extends StatelessWidget {
                   width: MediaQuery.of(context).size.width / 3,
                   height: double.maxFinite,
                   decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.08),
+                      color: AppPalette.surfaceContainer,
                       image: DecorationImage(
                           image: imageProvider, fit: BoxFit.cover)),
                 ),
@@ -62,8 +77,8 @@ class ArticleWidget extends StatelessWidget {
                   width: MediaQuery.of(context).size.width / 3,
                   height: double.maxFinite,
                   child: const CupertinoActivityIndicator(),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.08),
+                  decoration: const BoxDecoration(
+                    color: AppPalette.surfaceContainer,
                   ),
                 ),
               ),
@@ -75,16 +90,21 @@ class ArticleWidget extends StatelessWidget {
                 child: Container(
                   width: MediaQuery.of(context).size.width / 3,
                   height: double.maxFinite,
-                  child: const Icon(Icons.error),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.08),
+                  child: const Icon(
+                    Icons.error_outline,
+                    color: AppPalette.error,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: AppPalette.surfaceContainer,
                   ),
                 ),
               ),
             ));
   }
 
-  Widget _buildTitleAndDescription() {
+  Widget _buildTitleAndDescription(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 7),
@@ -97,11 +117,8 @@ class ArticleWidget extends StatelessWidget {
               article!.title ?? '',
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: 'Butler',
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
-                color: Colors.black87,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
               ),
             ),
 
@@ -112,6 +129,7 @@ class ArticleWidget extends StatelessWidget {
                 child: Text(
                   article!.description ?? '',
                   maxLines: 2,
+                  style: textTheme.bodyMedium,
                 ),
               ),
             ),
@@ -122,9 +140,9 @@ class ArticleWidget extends StatelessWidget {
                 const Icon(Icons.timeline_outlined, size: 16),
                 const SizedBox(width: 4),
                 Text(
-                  article!.publishedAt!,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  article!.publishedAt ?? '',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppPalette.onSurfaceMuted,
                   ),
                 ),
               ],
@@ -141,7 +159,10 @@ class ArticleWidget extends StatelessWidget {
         onTap: _onRemove,
         child: const Padding(
           padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Icon(Icons.remove_circle_outline, color: Colors.red),
+          child: Icon(
+            Icons.remove_circle_outline,
+            color: AppPalette.error,
+          ),
         ),
       );
     }

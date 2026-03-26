@@ -35,8 +35,9 @@ class _$AppDatabaseBuilder {
   }
 
   Future<AppDatabase> build() async {
-    final path =
-        name != null ? await sqfliteDatabaseFactory.getDatabasePath(name!) : ':memory:';
+    final path = name != null
+        ? await sqfliteDatabaseFactory.getDatabasePath(name!)
+        : ':memory:';
     final database = _$AppDatabase();
     database.database = await database.open(
       path,

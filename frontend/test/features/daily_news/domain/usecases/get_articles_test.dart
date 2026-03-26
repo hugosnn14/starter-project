@@ -11,7 +11,8 @@ void main() {
 
       expect(articles, hasLength(3));
       expect(articles.first.author, 'Ada Lovelace');
-      expect(articles.first.title, 'Cities can reuse water better than we think');
+      expect(
+          articles.first.title, 'Cities can reuse water better than we think');
     });
   });
 }

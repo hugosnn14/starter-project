@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:news_app_clean_architecture/config/routes/routes.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_event.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_state.dart';
@@ -9,18 +10,18 @@ import '../../../domain/entities/article.dart';
 import '../../widgets/article_tile.dart';
 
 class DailyNews extends StatelessWidget {
-  const DailyNews({Key? key}) : super(key: key);
+  const DailyNews({super.key});
 
   @override
   Widget build(BuildContext context) {
     return _buildPage();
   }
 
-  PreferredSizeWidget _buildAppbar() {
+  PreferredSizeWidget _buildAppbar(BuildContext context) {
     return AppBar(
-      title: const Text(
+      title: Text(
         'Daily News',
-        style: TextStyle(color: Colors.black),
+        style: Theme.of(context).textTheme.titleLarge,
       ),
     );
   }
@@ -31,12 +32,15 @@ class DailyNews extends StatelessWidget {
         if (state.status == ArticlesStatus.initial ||
             state.status == ArticlesStatus.loading) {
           return Scaffold(
-              appBar: _buildAppbar(),
-              body: const Center(child: CupertinoActivityIndicator()));
+            appBar: _buildAppbar(context),
+            body: const Center(
+              child: CupertinoActivityIndicator(),
+            ),
+          );
         }
         if (state.status == ArticlesStatus.failure) {
           return Scaffold(
-            appBar: _buildAppbar(),
+            appBar: _buildAppbar(context),
             body: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -70,12 +74,13 @@ class DailyNews extends StatelessWidget {
   Widget _buildArticlesPage(
       BuildContext context, List<ArticleEntity> articles) {
     return Scaffold(
-      appBar: _buildAppbar(),
+      appBar: _buildAppbar(context),
       body: articles.isEmpty
           ? const Center(
               child: Text('No hay articulos disponibles.'),
             )
           : ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
               itemCount: articles.length,
               itemBuilder: (context, index) {
                 return ArticleWidget(
@@ -93,13 +98,17 @@ class DailyNews extends StatelessWidget {
   }
 
   void _onArticlePressed(BuildContext context, ArticleEntity article) {
-    Navigator.pushNamed(context, '/ArticleDetails', arguments: article);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.articleDetails,
+      arguments: article,
+    );
   }
 
   void _onCreateArticlePressed(BuildContext context) {
     Navigator.pushNamed(
       context,
-      '/CreateArticle',
+      AppRoutes.createArticle,
       arguments: context.read<ArticlesBloc>(),
     );
   }

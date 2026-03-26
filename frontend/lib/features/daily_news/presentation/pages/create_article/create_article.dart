@@ -5,7 +5,7 @@ import 'package:news_app_clean_architecture/features/daily_news/presentation/blo
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_state.dart';
 
 class CreateArticlePage extends StatefulWidget {
-  const CreateArticlePage({Key? key}) : super(key: key);
+  const CreateArticlePage({super.key});
 
   @override
   State<CreateArticlePage> createState() => _CreateArticlePageState();
@@ -54,9 +54,9 @@ class _CreateArticlePageState extends State<CreateArticlePage> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text(
+            title: Text(
               'Create Article',
-              style: TextStyle(color: Colors.black),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
           body: SingleChildScrollView(
@@ -120,7 +120,6 @@ class _CreateArticlePageState extends State<CreateArticlePage> {
       controller: controller,
       maxLines: maxLines,
       decoration: InputDecoration(
-        border: const OutlineInputBorder(),
         labelText: label,
       ),
       validator: (value) {

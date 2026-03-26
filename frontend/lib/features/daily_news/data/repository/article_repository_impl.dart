@@ -23,8 +23,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
       description:
           'Clarity in digital services is not decoration. It is part of whether a product actually works.',
       url: 'https://example.com/articles/simpler-writing',
-      urlToImage:
-          'https://placehold.co/600x400/png?text=Simple+Writing',
+      urlToImage: 'https://placehold.co/600x400/png?text=Simple+Writing',
       publishedAt: '2026-03-22',
       content:
           'When interfaces are difficult to understand, the system fails before the user even starts. Clear text is product quality, not polish.',
@@ -36,8 +35,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
       description:
           'The fastest way to show quality is to close a small vertical slice end to end.',
       url: 'https://example.com/articles/small-scope',
-      urlToImage:
-          'https://placehold.co/600x400/png?text=Small+Scope',
+      urlToImage: 'https://placehold.co/600x400/png?text=Small+Scope',
       publishedAt: '2026-03-20',
       content:
           'Small scopes reduce uncertainty, make testing easier, and help teams prove reliability with less noise.',
@@ -69,7 +67,8 @@ class ArticleRepositoryImpl implements ArticleRepository {
       author: article.author,
       title: article.title,
       description: article.description,
-      url: 'https://example.com/articles/${DateTime.now().millisecondsSinceEpoch}',
+      url:
+          'https://example.com/articles/${DateTime.now().millisecondsSinceEpoch}',
       urlToImage: 'https://placehold.co/600x400/png?text=New+Article',
       publishedAt: DateTime.now().toIso8601String().split('T').first,
       content: article.content,

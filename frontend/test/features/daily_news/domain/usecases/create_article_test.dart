@@ -5,7 +5,8 @@ import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/
 
 void main() {
   group('CreateArticleUseCase', () {
-    test('creates a new article and prepends it to the repository list', () async {
+    test('creates a new article and prepends it to the repository list',
+        () async {
       final repository = ArticleRepositoryImpl();
       final createArticleUseCase = CreateArticleUseCase(repository);
       final getArticlesUseCase = GetArticlesUseCase(repository);
