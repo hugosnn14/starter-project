@@ -113,7 +113,8 @@ class DailyNews extends StatelessWidget {
         _StateMessageCard(
           icon: Icons.wifi_tethering_error_rounded,
           title: 'We hit a loading issue',
-          description: message ?? 'Something went wrong while loading articles.',
+          description:
+              message ?? 'Something went wrong while loading articles.',
           primaryActionLabel: 'Retry',
           onPrimaryAction: () => context.read<ArticlesBloc>().add(
                 const LoadArticles(),

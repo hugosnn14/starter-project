@@ -5,6 +5,9 @@ import 'package:ionicons/ionicons.dart';
 import '../../../../../config/theme/app_themes.dart';
 import '../../../domain/entities/article.dart';
 import '../../bloc/article_details/article_details_bloc.dart';
+import '../../bloc/saved_articles/saved_articles_bloc.dart';
+import '../../bloc/saved_articles/saved_articles_event.dart';
+import '../../bloc/saved_articles/saved_articles_state.dart';
 import '../../bloc/article_details/article_details_state.dart';
 
 class ArticleDetailsView extends StatelessWidget {
@@ -12,29 +15,39 @@ class ArticleDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: BlocBuilder<ArticleDetailsBloc, ArticleDetailsState>(
+    return BlocListener<SavedArticlesBloc, SavedArticlesState>(
+      listenWhen: (previous, current) =>
+          previous.status != current.status &&
+          current.status == SavedArticlesStatus.failure,
+      listener: (context, state) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              state.errorMessage ?? 'The saved articles action failed.',
+            ),
+          ),
+        );
+      },
+      child: BlocBuilder<ArticleDetailsBloc, ArticleDetailsState>(
         builder: (context, state) {
-          if (state.status == ArticleDetailsStatus.initial ||
-              state.status == ArticleDetailsStatus.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state.status == ArticleDetailsStatus.notFound ||
-              state.status == ArticleDetailsStatus.failure) {
-            return Center(
-              child: Text(state.errorMessage ?? 'Algo ha ido mal.'),
-            );
-          }
-
-          return _buildBody(context, state.article!);
+          return Scaffold(
+            appBar: _buildAppBar(
+              context,
+              state.status == ArticleDetailsStatus.success
+                  ? state.article
+                  : null,
+            ),
+            body: _buildContent(context, state),
+          );
         },
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    ArticleEntity? article,
+  ) {
     return AppBar(
       leading: Builder(
         builder: (context) => GestureDetector(
@@ -50,7 +63,30 @@ class ArticleDetailsView extends StatelessWidget {
         'Article',
         style: Theme.of(context).textTheme.titleMedium,
       ),
+      actions: [
+        if (article != null) _buildSavedAction(context, article),
+        const SizedBox(width: 8),
+      ],
     );
+  }
+
+  Widget _buildContent(BuildContext context, ArticleDetailsState state) {
+    if (state.status == ArticleDetailsStatus.initial ||
+        state.status == ArticleDetailsStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.status == ArticleDetailsStatus.notFound ||
+        state.status == ArticleDetailsStatus.failure) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(state.errorMessage ?? 'Algo ha ido mal.'),
+        ),
+      );
+    }
+
+    return _buildBody(context, state.article!);
   }
 
   Widget _buildBody(BuildContext context, ArticleEntity article) {
@@ -62,6 +98,39 @@ class ArticleDetailsView extends StatelessWidget {
           _buildArticleDescription(context, article),
         ],
       ),
+    );
+  }
+
+  Widget _buildSavedAction(BuildContext context, ArticleEntity article) {
+    return BlocBuilder<SavedArticlesBloc, SavedArticlesState>(
+      buildWhen: (previous, current) =>
+          previous.status != current.status ||
+          previous.articles != current.articles,
+      builder: (context, state) {
+        final isLoading = state.status == SavedArticlesStatus.loading &&
+            state.articles.isEmpty;
+        final isSaved = state.articles.any((item) => item.id == article.id);
+
+        if (isLoading) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        return IconButton(
+          tooltip: isSaved ? 'Remove from saved' : 'Save article',
+          onPressed: () => _toggleSavedArticle(context, article, isSaved),
+          icon: Icon(
+            isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+            color: isSaved ? AppPalette.primary : AppPalette.onSurface,
+          ),
+        );
+      },
     );
   }
 
@@ -135,5 +204,20 @@ class ArticleDetailsView extends StatelessWidget {
 
   void _onBackButtonTapped(BuildContext context) {
     Navigator.pop(context);
+  }
+
+  void _toggleSavedArticle(
+    BuildContext context,
+    ArticleEntity article,
+    bool isSaved,
+  ) {
+    final bloc = context.read<SavedArticlesBloc>();
+
+    if (isSaved) {
+      bloc.add(SavedArticleDeleted(article));
+      return;
+    }
+
+    bloc.add(SavedArticleStored(article));
   }
 }

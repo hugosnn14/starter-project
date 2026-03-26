@@ -54,5 +54,29 @@ void main() {
 
       await bloc.close();
     });
+
+    test('emits loading and success when an article is removed', () async {
+      final repository = ArticleRepositoryImpl();
+      final article = (await GetArticlesUseCase(repository)()).first;
+      await SaveArticleUseCase(repository)(params: article);
+
+      final bloc = SavedArticlesBloc(
+        GetSavedArticleUseCase(repository),
+        SaveArticleUseCase(repository),
+        RemoveArticleUseCase(repository),
+      );
+
+      final emittedStatesFuture = bloc.stream.take(2).toList();
+
+      bloc.add(SavedArticleDeleted(article));
+
+      final emittedStates = await emittedStatesFuture;
+
+      expect(emittedStates[0].status, SavedArticlesStatus.loading);
+      expect(emittedStates[1].status, SavedArticlesStatus.success);
+      expect(emittedStates[1].articles, isEmpty);
+
+      await bloc.close();
+    });
   });
 }

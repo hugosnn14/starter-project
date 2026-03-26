@@ -6,6 +6,8 @@ import '../../features/daily_news/domain/entities/article.dart';
 import '../../features/daily_news/presentation/bloc/article_details/article_details_bloc.dart';
 import '../../features/daily_news/presentation/bloc/article_details/article_details_event.dart';
 import '../../features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
+import '../../features/daily_news/presentation/bloc/saved_articles/saved_articles_bloc.dart';
+import '../../features/daily_news/presentation/bloc/saved_articles/saved_articles_event.dart';
 import '../../features/daily_news/presentation/pages/article_detail/article_detail.dart';
 import '../../features/daily_news/presentation/pages/create_article/create_article.dart';
 import '../../features/daily_news/presentation/pages/home/daily_news.dart';
@@ -25,9 +27,18 @@ class AppRoutes {
       case articleDetails:
       case '/ArticleDetails':
         return _materialRoute(
-          BlocProvider<ArticleDetailsBloc>(
-            create: (_) => sl<ArticleDetailsBloc>()
-              ..add(LoadArticleDetails(_extractArticleId(settings.arguments))),
+          MultiBlocProvider(
+            providers: [
+              BlocProvider<ArticleDetailsBloc>(
+                create: (_) => sl<ArticleDetailsBloc>()
+                  ..add(LoadArticleDetails(
+                      _extractArticleId(settings.arguments))),
+              ),
+              BlocProvider<SavedArticlesBloc>(
+                create: (_) => sl<SavedArticlesBloc>()
+                  ..add(const SavedArticlesRequested()),
+              ),
+            ],
             child: const ArticleDetailsView(),
           ),
           settings,
