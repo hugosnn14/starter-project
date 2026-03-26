@@ -1,19 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ionicons/ionicons.dart';
 
 import '../../../../../config/theme/app_themes.dart';
 import '../../../domain/entities/article.dart';
+import '../../bloc/article_details/article_details_bloc.dart';
+import '../../bloc/article_details/article_details_state.dart';
 
 class ArticleDetailsView extends StatelessWidget {
-  final ArticleEntity article;
-
-  const ArticleDetailsView({super.key, required this.article});
+  const ArticleDetailsView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(context),
-      body: _buildBody(context),
+      body: BlocBuilder<ArticleDetailsBloc, ArticleDetailsState>(
+        builder: (context, state) {
+          if (state.status == ArticleDetailsStatus.initial ||
+              state.status == ArticleDetailsStatus.loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state.status == ArticleDetailsStatus.notFound ||
+              state.status == ArticleDetailsStatus.failure) {
+            return Center(
+              child: Text(state.errorMessage ?? 'Algo ha ido mal.'),
+            );
+          }
+
+          return _buildBody(context, state.article!);
+        },
+      ),
     );
   }
 
@@ -36,19 +53,22 @@ class ArticleDetailsView extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, ArticleEntity article) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          _buildArticleTitleAndDate(context),
-          _buildArticleImage(),
-          _buildArticleDescription(context),
+          _buildArticleTitleAndDate(context, article),
+          _buildArticleImage(article),
+          _buildArticleDescription(context, article),
         ],
       ),
     );
   }
 
-  Widget _buildArticleTitleAndDate(BuildContext context) {
+  Widget _buildArticleTitleAndDate(
+    BuildContext context,
+    ArticleEntity article,
+  ) {
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
@@ -85,7 +105,7 @@ class ArticleDetailsView extends StatelessWidget {
     );
   }
 
-  Widget _buildArticleImage() {
+  Widget _buildArticleImage(ArticleEntity article) {
     return Container(
       width: double.maxFinite,
       height: 250,
@@ -100,7 +120,10 @@ class ArticleDetailsView extends StatelessWidget {
     );
   }
 
-  Widget _buildArticleDescription(BuildContext context) {
+  Widget _buildArticleDescription(
+    BuildContext context,
+    ArticleEntity article,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
       child: Text(

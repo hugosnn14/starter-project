@@ -1,25 +1,26 @@
 import 'package:equatable/equatable.dart';
-import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
 
-enum ArticlesStatus { initial, loading, success, failure }
+import '../../../domain/entities/article.dart';
 
-class ArticlesState extends Equatable {
-  final ArticlesStatus status;
+enum SavedArticlesStatus { initial, loading, success, failure }
+
+class SavedArticlesState extends Equatable {
+  final SavedArticlesStatus status;
   final List<ArticleEntity> articles;
   final String? errorMessage;
 
-  const ArticlesState({
-    this.status = ArticlesStatus.initial,
+  const SavedArticlesState({
+    this.status = SavedArticlesStatus.initial,
     this.articles = const [],
     this.errorMessage,
   });
 
-  ArticlesState copyWith({
-    ArticlesStatus? status,
+  SavedArticlesState copyWith({
+    SavedArticlesStatus? status,
     List<ArticleEntity>? articles,
     String? errorMessage,
   }) {
-    return ArticlesState(
+    return SavedArticlesState(
       status: status ?? this.status,
       articles: articles ?? this.articles,
       errorMessage: errorMessage,

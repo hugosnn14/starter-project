@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../injection_container.dart';
 import '../../features/daily_news/domain/entities/article.dart';
-import '../../features/daily_news/presentation/bloc/article/articles_bloc.dart';
+import '../../features/daily_news/presentation/bloc/article_details/article_details_bloc.dart';
+import '../../features/daily_news/presentation/bloc/article_details/article_details_event.dart';
+import '../../features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
 import '../../features/daily_news/presentation/pages/article_detail/article_detail.dart';
 import '../../features/daily_news/presentation/pages/create_article/create_article.dart';
 import '../../features/daily_news/presentation/pages/home/daily_news.dart';
@@ -21,15 +24,20 @@ class AppRoutes {
 
       case articleDetails:
       case '/ArticleDetails':
+        final article = settings.arguments as ArticleEntity;
         return _materialRoute(
-          ArticleDetailsView(article: settings.arguments as ArticleEntity),
+          BlocProvider<ArticleDetailsBloc>(
+            create: (_) =>
+                sl<ArticleDetailsBloc>()..add(LoadArticleDetails(article.id!)),
+            child: const ArticleDetailsView(),
+          ),
           settings,
         );
       case createArticle:
       case '/CreateArticle':
         return _materialRoute(
-          BlocProvider.value(
-            value: settings.arguments as ArticlesBloc,
+          BlocProvider<CreateArticleBloc>(
+            create: (_) => sl<CreateArticleBloc>(),
             child: const CreateArticlePage(),
           ),
           settings,

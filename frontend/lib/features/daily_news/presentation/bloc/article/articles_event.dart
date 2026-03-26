@@ -10,20 +10,3 @@ abstract class ArticlesEvent extends Equatable {
 class LoadArticles extends ArticlesEvent {
   const LoadArticles();
 }
-
-class CreateArticleRequested extends ArticlesEvent {
-  final String authorName;
-  final String title;
-  final String description;
-  final String content;
-
-  const CreateArticleRequested({
-    required this.authorName,
-    required this.title,
-    required this.description,
-    required this.content,
-  });
-
-  @override
-  List<Object?> get props => [authorName, title, description, content];
-}

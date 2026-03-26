@@ -1,22 +1,23 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:ionicons/ionicons.dart';
+import 'package:news_app_clean_architecture/config/routes/routes.dart';
 import '../../../../../injection_container.dart';
 import '../../../domain/entities/article.dart';
-import '../../bloc/article/local/local_article_bloc.dart';
-import '../../bloc/article/local/local_article_event.dart';
-import '../../bloc/article/local/local_article_state.dart';
+import '../../bloc/saved_articles/saved_articles_bloc.dart';
+import '../../bloc/saved_articles/saved_articles_event.dart';
+import '../../bloc/saved_articles/saved_articles_state.dart';
 import '../../widgets/article_tile.dart';
 
-class SavedArticles extends HookWidget {
-  const SavedArticles({Key? key}) : super(key: key);
+class SavedArticles extends StatelessWidget {
+  const SavedArticles({super.key});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<LocalArticleBloc>()..add(const GetSavedArticles()),
+      create: (_) =>
+          sl<SavedArticlesBloc>()..add(const SavedArticlesRequested()),
       child: Scaffold(
         appBar: _buildAppBar(),
         body: _buildBody(),
@@ -39,14 +40,18 @@ class SavedArticles extends HookWidget {
   }
 
   Widget _buildBody() {
-    return BlocBuilder<LocalArticleBloc, LocalArticlesState>(
+    return BlocBuilder<SavedArticlesBloc, SavedArticlesState>(
       builder: (context, state) {
-        if (state is LocalArticlesLoading) {
+        if (state.status == SavedArticlesStatus.initial ||
+            state.status == SavedArticlesStatus.loading) {
           return const Center(child: CupertinoActivityIndicator());
-        } else if (state is LocalArticlesDone) {
-          return _buildArticlesList(state.articles!);
         }
-        return Container();
+        if (state.status == SavedArticlesStatus.failure) {
+          return Center(
+            child: Text(state.errorMessage ?? 'Algo ha ido mal.'),
+          );
+        }
+        return _buildArticlesList(state.articles);
       },
     );
   }
@@ -79,10 +84,14 @@ class SavedArticles extends HookWidget {
   }
 
   void _onRemoveArticle(BuildContext context, ArticleEntity article) {
-    BlocProvider.of<LocalArticleBloc>(context).add(RemoveArticle(article));
+    context.read<SavedArticlesBloc>().add(SavedArticleDeleted(article));
   }
 
   void _onArticlePressed(BuildContext context, ArticleEntity article) {
-    Navigator.pushNamed(context, '/ArticleDetails', arguments: article);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.articleDetails,
+      arguments: article,
+    );
   }
 }

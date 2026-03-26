@@ -62,8 +62,7 @@ class DailyNews extends StatelessWidget {
             ),
           );
         }
-        if (state.status == ArticlesStatus.success ||
-            state.status == ArticlesStatus.submitting) {
+        if (state.status == ArticlesStatus.success) {
           return _buildArticlesPage(context, state.articles);
         }
         return const SizedBox();
@@ -109,7 +108,6 @@ class DailyNews extends StatelessWidget {
     Navigator.pushNamed(
       context,
       AppRoutes.createArticle,
-      arguments: context.read<ArticlesBloc>(),
     );
   }
 }
