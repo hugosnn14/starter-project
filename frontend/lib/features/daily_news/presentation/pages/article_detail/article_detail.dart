@@ -1,26 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:ionicons/ionicons.dart';
-import '../../../../../injection_container.dart';
 import '../../../domain/entities/article.dart';
-import '../../bloc/article/local/local_article_bloc.dart';
-import '../../bloc/article/local/local_article_event.dart';
 
-class ArticleDetailsView extends HookWidget {
-  final ArticleEntity? article;
+class ArticleDetailsView extends StatelessWidget {
+  final ArticleEntity article;
 
-  const ArticleDetailsView({Key? key, this.article}) : super(key: key);
+  const ArticleDetailsView({Key? key, required this.article}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<LocalArticleBloc>(),
-      child: Scaffold(
-        appBar: _buildAppBar(),
-        body: _buildBody(),
-        floatingActionButton: _buildFloatingActionButton(),
-      ),
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: _buildBody(),
     );
   }
 
@@ -56,7 +47,7 @@ class ArticleDetailsView extends HookWidget {
         children: [
           // Title
           Text(
-            article!.title!,
+            article.title!,
             style: const TextStyle(
                 fontFamily: 'Butler',
                 fontSize: 20,
@@ -64,13 +55,18 @@ class ArticleDetailsView extends HookWidget {
           ),
 
           const SizedBox(height: 14),
+          Text(
+            article.author ?? '',
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 10),
           // DateTime
           Row(
             children: [
               const Icon(Ionicons.time_outline, size: 16),
               const SizedBox(width: 4),
               Text(
-                article!.publishedAt!,
+                article.publishedAt!,
                 style: const TextStyle(fontSize: 12),
               ),
             ],
@@ -85,7 +81,7 @@ class ArticleDetailsView extends HookWidget {
       width: double.maxFinite,
       height: 250,
       margin: const EdgeInsets.only(top: 14),
-      child: Image.network(article!.urlToImage!, fit: BoxFit.cover),
+      child: Image.network(article.urlToImage!, fit: BoxFit.cover),
     );
   }
 
@@ -93,32 +89,13 @@ class ArticleDetailsView extends HookWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
       child: Text(
-        '${article!.description ?? ''}\n\n${article!.content ?? ''}',
+        '${article.description ?? ''}\n\n${article.content ?? ''}',
         style: const TextStyle(fontSize: 16),
-      ),
-    );
-  }
-
-  Widget _buildFloatingActionButton() {
-    return Builder(
-      builder: (context) => FloatingActionButton(
-        onPressed: () => _onFloatingActionButtonPressed(context),
-        child: const Icon(Ionicons.bookmark, color: Colors.white),
       ),
     );
   }
 
   void _onBackButtonTapped(BuildContext context) {
     Navigator.pop(context);
-  }
-
-  void _onFloatingActionButtonPressed(BuildContext context) {
-    BlocProvider.of<LocalArticleBloc>(context).add(SaveArticle(article!));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: Colors.black,
-        content: Text('Article saved successfully.'),
-      ),
-    );
   }
 }

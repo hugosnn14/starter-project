@@ -1,59 +1,60 @@
-import 'dart:io';
-
-import 'package:dio/dio.dart';
-import 'package:news_app_clean_architecture/core/constants/constants.dart';
-import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/app_database.dart';
-import 'package:news_app_clean_architecture/features/daily_news/data/models/article.dart';
-import 'package:news_app_clean_architecture/core/resources/data_state.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 
-import '../data_sources/remote/news_api_service.dart';
-
 class ArticleRepositoryImpl implements ArticleRepository {
-  final NewsApiService _newsApiService;
-  final AppDatabase _appDatabase;
-  ArticleRepositoryImpl(this._newsApiService,this._appDatabase);
-  
-  @override
-  Future<DataState<List<ArticleModel>>> getNewsArticles() async {
-   try {
-    final httpResponse = await _newsApiService.getNewsArticles(
-      apiKey:newsAPIKey,
-      country:countryQuery,
-      category:categoryQuery,
-    );
+  final List<ArticleEntity> _articles = const [
+    ArticleEntity(
+      id: 1,
+      author: 'Ada Lovelace',
+      title: 'Cities can reuse water better than we think',
+      description:
+          'A short piece about practical water reuse strategies that can be deployed right now.',
+      url: 'https://example.com/articles/water-reuse',
+      urlToImage: 'https://placehold.co/600x400/png?text=Water+Reuse',
+      publishedAt: '2026-03-24',
+      content:
+          'Water reuse is no longer a futuristic idea. Municipal systems can adopt small improvements that generate measurable impact in the short term.',
+    ),
+    ArticleEntity(
+      id: 2,
+      author: 'Grace Hopper',
+      title: 'Why public tech products need simpler writing',
+      description:
+          'Clarity in digital services is not decoration. It is part of whether a product actually works.',
+      url: 'https://example.com/articles/simpler-writing',
+      urlToImage:
+          'https://placehold.co/600x400/png?text=Simple+Writing',
+      publishedAt: '2026-03-22',
+      content:
+          'When interfaces are difficult to understand, the system fails before the user even starts. Clear text is product quality, not polish.',
+    ),
+    ArticleEntity(
+      id: 3,
+      author: 'Katherine Johnson',
+      title: 'Small teams win by finishing smaller scopes',
+      description:
+          'The fastest way to show quality is to close a small vertical slice end to end.',
+      url: 'https://example.com/articles/small-scope',
+      urlToImage:
+          'https://placehold.co/600x400/png?text=Small+Scope',
+      publishedAt: '2026-03-20',
+      content:
+          'Small scopes reduce uncertainty, make testing easier, and help teams prove reliability with less noise.',
+    ),
+  ];
 
-    if (httpResponse.response.statusCode == HttpStatus.ok) {
-      return DataSuccess(httpResponse.data);
-    } else {
-      return DataFailed(
-        DioError(
-          error: httpResponse.response.statusMessage,
-          response: httpResponse.response,
-          type: DioErrorType.response,
-          requestOptions: httpResponse.response.requestOptions
-        )
-      );
+  @override
+  Future<List<ArticleEntity>> getArticles() async {
+    return List.unmodifiable(_articles);
+  }
+
+  @override
+  Future<ArticleEntity?> getArticleById(int articleId) async {
+    for (final article in _articles) {
+      if (article.id == articleId) {
+        return article;
+      }
     }
-   } on DioError catch(e){
-    return DataFailed(e);
-   }
+    return null;
   }
-
-  @override
-  Future<List<ArticleModel>> getSavedArticles() async {
-    return _appDatabase.articleDAO.getArticles();
-  }
-
-  @override
-  Future<void> removeArticle(ArticleEntity article) {
-    return _appDatabase.articleDAO.deleteArticle(ArticleModel.fromEntity(article));
-  }
-
-  @override
-  Future<void> saveArticle(ArticleEntity article) {
-    return _appDatabase.articleDAO.insertArticle(ArticleModel.fromEntity(article));
-  }
-  
 }
