@@ -4,7 +4,10 @@ import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/remote/remote_article_event.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/remote/remote_article_state.dart';
 
-class RemoteArticlesBloc extends Bloc<RemoteArticlesEvent, RemoteArticlesState> {
+// Legacy remote feed bloc retained for reference. The active app now uses
+// ArticlesBloc for feed loading and does not register this bloc in DI.
+class RemoteArticlesBloc
+    extends Bloc<RemoteArticlesEvent, RemoteArticlesState> {
   final GetArticleUseCase _getArticleUseCase;
 
   RemoteArticlesBloc(this._getArticleUseCase)

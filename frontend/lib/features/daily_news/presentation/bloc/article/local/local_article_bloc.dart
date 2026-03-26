@@ -6,6 +6,8 @@ import '../../../../domain/usecases/get_saved_article.dart';
 import '../../../../domain/usecases/remove_article.dart';
 import '../../../../domain/usecases/save_article.dart';
 
+// Legacy local saved-articles bloc retained for reference. The active app now
+// uses SavedArticlesBloc and keeps this bloc disconnected from DI and routes.
 class LocalArticleBloc extends Bloc<LocalArticlesEvent, LocalArticlesState> {
   final GetSavedArticleUseCase _getSavedArticleUseCase;
   final SaveArticleUseCase _saveArticleUseCase;

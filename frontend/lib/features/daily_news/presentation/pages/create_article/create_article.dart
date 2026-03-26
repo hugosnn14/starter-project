@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_event.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_state.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_event.dart';
-import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_state.dart';
 
+// Legacy draft screen retained for reference while the active route points to
+// CreateArticleEditorPage.
 class CreateArticlePage extends StatefulWidget {
-  const CreateArticlePage({Key? key}) : super(key: key);
+  const CreateArticlePage({super.key});
 
   @override
   State<CreateArticlePage> createState() => _CreateArticlePageState();
@@ -29,17 +33,18 @@ class _CreateArticlePageState extends State<CreateArticlePage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<ArticlesBloc, ArticlesState>(
+    return BlocConsumer<CreateArticleBloc, CreateArticleState>(
       listenWhen: (previous, current) =>
           previous.status != current.status &&
-          (current.status == ArticlesStatus.success ||
-              current.status == ArticlesStatus.failure),
+          (current.status == CreateArticleStatus.success ||
+              current.status == CreateArticleStatus.failure),
       listener: (context, state) {
-        if (state.status == ArticlesStatus.success) {
+        if (state.status == CreateArticleStatus.success) {
+          context.read<ArticlesBloc>().add(const LoadArticles());
           Navigator.pop(context);
         }
 
-        if (state.status == ArticlesStatus.failure) {
+        if (state.status == CreateArticleStatus.failure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -50,13 +55,13 @@ class _CreateArticlePageState extends State<CreateArticlePage> {
         }
       },
       builder: (context, state) {
-        final isSubmitting = state.status == ArticlesStatus.submitting;
+        final isSubmitting = state.status == CreateArticleStatus.submitting;
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text(
+            title: Text(
               'Create Article',
-              style: TextStyle(color: Colors.black),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
           body: SingleChildScrollView(
@@ -120,7 +125,6 @@ class _CreateArticlePageState extends State<CreateArticlePage> {
       controller: controller,
       maxLines: maxLines,
       decoration: InputDecoration(
-        border: const OutlineInputBorder(),
         labelText: label,
       ),
       validator: (value) {
@@ -137,8 +141,8 @@ class _CreateArticlePageState extends State<CreateArticlePage> {
       return;
     }
 
-    context.read<ArticlesBloc>().add(
-          CreateArticleRequested(
+    context.read<CreateArticleBloc>().add(
+          SubmitCreateArticle(
             authorName: _authorController.text.trim(),
             title: _titleController.text.trim(),
             description: _descriptionController.text.trim(),

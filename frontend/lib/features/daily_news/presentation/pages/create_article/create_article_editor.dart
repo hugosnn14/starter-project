@@ -1,0 +1,850 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:news_app_clean_architecture/config/routes/routes.dart';
+import 'package:news_app_clean_architecture/config/theme/app_themes.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_event.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_event.dart';
+import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_state.dart';
+
+import '../../../domain/entities/article.dart';
+
+class CreateArticleEditorPage extends StatefulWidget {
+  const CreateArticleEditorPage({super.key});
+
+  @override
+  State<CreateArticleEditorPage> createState() =>
+      _CreateArticleEditorPageState();
+}
+
+class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+  final _authorController = TextEditingController();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _contentController = TextEditingController();
+
+  bool _showValidation = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _authorController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<CreateArticleBloc, CreateArticleState>(
+      listenWhen: (previous, current) => previous.status != current.status,
+      listener: (context, state) {
+        if (state.status == CreateArticleStatus.success) {
+          context.read<ArticlesBloc>().add(const LoadArticles());
+        }
+
+        if (state.status == CreateArticleStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                state.errorMessage ?? 'The article could not be published.',
+              ),
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: AppPalette.background,
+          appBar: _buildAppBar(context, state),
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _buildBody(context, state),
+          ),
+        );
+      },
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    CreateArticleState state,
+  ) {
+    final isPublished = state.status == CreateArticleStatus.success;
+    final isPublishing = state.status == CreateArticleStatus.submitting;
+
+    return AppBar(
+      centerTitle: false,
+      titleSpacing: 16,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isPublished ? 'Article published' : 'Create article',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          Text(
+            isPublished
+                ? 'Preview the published result.'
+                : 'Compose a new story for the editorial feed.',
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+        ],
+      ),
+      actions: [
+        if (!isPublished)
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: FilledButton(
+              onPressed: isPublishing ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppPalette.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
+              ),
+              child: Text(isPublishing ? 'Publishing...' : 'Publish'),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBody(BuildContext context, CreateArticleState state) {
+    if (state.status == CreateArticleStatus.success && state.article != null) {
+      return _buildSuccessState(context, state.article!);
+    }
+
+    return Stack(
+      children: [
+        _buildEditor(context),
+        if (state.status == CreateArticleStatus.submitting)
+          _buildPublishingOverlay(context),
+      ],
+    );
+  }
+
+  Widget _buildEditor(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+      child: Form(
+        key: _formKey,
+        autovalidateMode: _showValidation
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                gradient: const LinearGradient(
+                  colors: [
+                    AppPalette.surface,
+                    AppPalette.surfaceLow,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: AppPalette.shadow,
+                    blurRadius: 28,
+                    offset: Offset(0, 16),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppPalette.secondaryContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Editorial draft'.toUpperCase(),
+                      style: textTheme.labelMedium?.copyWith(
+                        color: AppPalette.onSecondaryContainer,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Build a publication-ready story',
+                    style: textTheme.displaySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This editor keeps the mocked business flow intact while simulating a polished publishing experience.',
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: AppPalette.onSurfaceMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildHeroAttachmentCard(context),
+            const SizedBox(height: 24),
+            _buildFieldSection(
+              context,
+              title: 'Title',
+              child: TextFormField(
+                controller: _titleController,
+                textCapitalization: TextCapitalization.sentences,
+                maxLines: 2,
+                minLines: 1,
+                style: textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'Write a strong headline...',
+                ),
+                validator: (value) => _validateRequired(
+                  value,
+                  'Add a title before publishing.',
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildFieldSection(
+              context,
+              title: 'Author',
+              child: TextFormField(
+                controller: _authorController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  hintText: 'Who is publishing this article?',
+                ),
+                validator: (value) => _validateRequired(
+                  value,
+                  'Add the author name.',
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildFieldSection(
+              context,
+              title: 'Summary',
+              trailing: _buildCharacterCount(
+                context,
+                current: _descriptionController.text.trim().length,
+                max: 180,
+              ),
+              child: TextFormField(
+                controller: _descriptionController,
+                textCapitalization: TextCapitalization.sentences,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Summarize the story in one clear paragraph...',
+                ),
+                onChanged: (_) => setState(() {}),
+                validator: (value) => _validateRequired(
+                  value,
+                  'Add a short summary.',
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildFieldSection(
+              context,
+              title: 'Body',
+              trailing: _buildCharacterCount(
+                context,
+                current: _contentController.text.trim().length,
+                max: 1200,
+              ),
+              child: TextFormField(
+                controller: _contentController,
+                textCapitalization: TextCapitalization.sentences,
+                maxLines: 12,
+                minLines: 8,
+                decoration: const InputDecoration(
+                  hintText: 'Add the complete article body here...',
+                ),
+                onChanged: (_) => setState(() {}),
+                validator: (value) => _validateRequired(
+                  value,
+                  'Add the article content.',
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildToolbarCard(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroAttachmentCard(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppPalette.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: AppPalette.shadow,
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                colors: [
+                  AppPalette.surfaceLow,
+                  AppPalette.surfaceContainer,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 52,
+                color: AppPalette.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Header image placeholder',
+            style: textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Image upload is deferred to the data-layer phase. The mocked repository will attach a generated preview image after publishing.',
+            textAlign: TextAlign.center,
+            style: textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFieldSection(
+    BuildContext context, {
+    required String title,
+    Widget? trailing,
+    required Widget child,
+  }) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppPalette.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: AppPalette.shadow,
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: textTheme.titleLarge,
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCharacterCount(
+    BuildContext context, {
+    required int current,
+    required int max,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppPalette.surfaceContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$current / $max',
+        style: Theme.of(context).textTheme.labelMedium,
+      ),
+    );
+  }
+
+  Widget _buildToolbarCard(BuildContext context) {
+    const toolbarActions = [
+      _FormattingAction(
+        icon: Icons.format_bold_rounded,
+        label: 'Bold',
+      ),
+      _FormattingAction(
+        icon: Icons.format_italic_rounded,
+        label: 'Italic',
+      ),
+      _FormattingAction(
+        icon: Icons.link_rounded,
+        label: 'Link',
+      ),
+      _FormattingAction(
+        icon: Icons.format_quote_rounded,
+        label: 'Quote',
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppPalette.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: AppPalette.shadow,
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Formatting',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Rich text actions are mocked in this phase. Tap a control to see the planned behavior.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppPalette.onSurfaceMuted,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: toolbarActions
+                .map(
+                  (action) => Tooltip(
+                    message: '${action.label} formatting (mock)',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () =>
+                          _showFormattingMessage(context, action.label),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppPalette.surfaceContainer,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          action.icon,
+                          size: 20,
+                          color: AppPalette.onSurfaceMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFormattingMessage(BuildContext context, String actionLabel) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '$actionLabel formatting is a UI stub in this mocked phase.',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPublishingOverlay(BuildContext context) {
+    return Positioned.fill(
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.55),
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Container(
+                width: 360,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppPalette.surface,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: AppPalette.shadow,
+                      blurRadius: 32,
+                      offset: Offset(0, 18),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        color: AppPalette.surfaceLow,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Icon(
+                        Icons.cloud_upload_rounded,
+                        size: 38,
+                        color: AppPalette.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Publishing...',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Finalizing the editorial polish for your story.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 20),
+                    const LinearProgressIndicator(
+                      minHeight: 6,
+                      borderRadius: BorderRadius.all(Radius.circular(999)),
+                    ),
+                    const SizedBox(height: 18),
+                    _buildPublishingStep(
+                      context,
+                      icon: Icons.check_circle_rounded,
+                      label: 'Validating structure',
+                      isActive: false,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildPublishingStep(
+                      context,
+                      icon: Icons.more_horiz_rounded,
+                      label: 'Publishing the article',
+                      isActive: true,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildPublishingStep(
+                      context,
+                      icon: Icons.outlined_flag_rounded,
+                      label: 'Refreshing the feed',
+                      isActive: false,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPublishingStep(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required bool isActive,
+  }) {
+    final color = isActive ? AppPalette.primary : AppPalette.onSurfaceMuted;
+
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccessState(BuildContext context, ArticleEntity article) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: AppPalette.surface,
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: const [
+              BoxShadow(
+                color: AppPalette.shadow,
+                blurRadius: 32,
+                offset: Offset(0, 18),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  color: AppPalette.surfaceLow,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  size: 56,
+                  color: AppPalette.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Published successfully',
+                style: textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'The new article is already available in the mocked feed and ready to be reviewed.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+              _buildSuccessPreviewCard(context, article),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _viewPublishedArticle(context, article),
+                      child: const Text('View article'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _resetEditor,
+                      child: const Text('Create another'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccessPreviewCard(BuildContext context, ArticleEntity article) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppPalette.surfaceLow,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 200,
+            width: double.infinity,
+            child: Image.network(
+              article.urlToImage ?? '',
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: AppPalette.surfaceContainer,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.image_outlined,
+                  size: 40,
+                  color: AppPalette.onSurfaceMuted,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppPalette.secondaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Published'.toUpperCase(),
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppPalette.onSecondaryContainer,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  article.title ?? '',
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  article.description ?? '',
+                  style: textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  '${article.author ?? 'Unknown author'} • ${article.publishedAt ?? ''}',
+                  style: textTheme.labelMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String? _validateRequired(String? value, String message) {
+    if (value == null || value.trim().isEmpty) {
+      return message;
+    }
+    return null;
+  }
+
+  void _submit() {
+    setState(() {
+      _showValidation = true;
+    });
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    context.read<CreateArticleBloc>().add(
+          SubmitCreateArticle(
+            authorName: _authorController.text.trim(),
+            title: _titleController.text.trim(),
+            description: _descriptionController.text.trim(),
+            content: _contentController.text.trim(),
+          ),
+        );
+  }
+
+  void _resetEditor() {
+    _authorController.clear();
+    _titleController.clear();
+    _descriptionController.clear();
+    _contentController.clear();
+
+    setState(() {
+      _showValidation = false;
+    });
+
+    context.read<CreateArticleBloc>().add(const ResetCreateArticle());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) {
+        return;
+      }
+
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  void _viewPublishedArticle(BuildContext context, ArticleEntity article) {
+    final articleId = article.id;
+
+    if (articleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The published article is missing an id.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.popAndPushNamed(
+      context,
+      AppRoutes.articleDetails,
+      arguments: articleId,
+    );
+  }
+}
+
+class _FormattingAction {
+  final IconData icon;
+  final String label;
+
+  const _FormattingAction({
+    required this.icon,
+    required this.label,
+  });
+}
