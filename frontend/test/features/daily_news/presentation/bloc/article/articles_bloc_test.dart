@@ -9,7 +9,8 @@ import '../../../../../helpers/fake_article_repository.dart';
 void main() {
   group('ArticlesBloc', () {
     test('emits loading and success when articles are loaded', () async {
-      final bloc = ArticlesBloc(GetArticlesUseCase(InMemoryArticleRepository()));
+      final bloc =
+          ArticlesBloc(GetArticlesUseCase(InMemoryArticleRepository()));
 
       final emittedStatesFuture = bloc.stream.take(2).toList();
 

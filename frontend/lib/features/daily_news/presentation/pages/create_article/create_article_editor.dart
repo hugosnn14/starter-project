@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:news_app_clean_architecture/features/daily_news/presentation/blo
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_state.dart';
 
 import '../../../domain/entities/article.dart';
+import '../../../domain/entities/article_thumbnail.dart';
 
 class CreateArticleEditorPage extends StatefulWidget {
   const CreateArticleEditorPage({super.key});
@@ -120,19 +122,19 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
 
   Widget _buildBody(BuildContext context, CreateArticleState state) {
     if (state.status == CreateArticleStatus.success && state.article != null) {
-      return _buildSuccessState(context, state.article!);
+      return _buildSuccessState(context, state);
     }
 
     return Stack(
       children: [
-        _buildEditor(context),
+        _buildEditor(context, state),
         if (state.status == CreateArticleStatus.submitting)
           _buildPublishingOverlay(context),
       ],
     );
   }
 
-  Widget _buildEditor(BuildContext context) {
+  Widget _buildEditor(BuildContext context, CreateArticleState state) {
     final textTheme = Theme.of(context).textTheme;
 
     return SingleChildScrollView(
@@ -202,7 +204,7 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
               ),
             ),
             const SizedBox(height: 24),
-            _buildHeroAttachmentCard(context),
+            _buildHeroAttachmentCard(context, state),
             const SizedBox(height: 24),
             _buildFieldSection(
               context,
@@ -295,8 +297,15 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
     );
   }
 
-  Widget _buildHeroAttachmentCard(BuildContext context) {
+  Widget _buildHeroAttachmentCard(
+    BuildContext context,
+    CreateArticleState state,
+  ) {
     final textTheme = Theme.of(context).textTheme;
+    final selectedThumbnail = state.selectedThumbnail;
+    final isBusy = state.isPickingThumbnail ||
+        state.status == CreateArticleStatus.submitting;
+    final showValidationMessage = _showValidation && selectedThumbnail == null;
 
     return Container(
       width: double.infinity,
@@ -328,26 +337,95 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Center(
-              child: Icon(
-                Icons.add_photo_alternate_outlined,
-                size: 52,
-                color: AppPalette.primary,
-              ),
-            ),
+            clipBehavior: Clip.antiAlias,
+            child: selectedThumbnail != null
+                ? _buildThumbnailPreviewImage(selectedThumbnail.path)
+                : const Center(
+                    child: Icon(
+                      Icons.add_photo_alternate_outlined,
+                      size: 52,
+                      color: AppPalette.primary,
+                    ),
+                  ),
           ),
           const SizedBox(height: 16),
           Text(
-            'Header image placeholder',
+            selectedThumbnail == null
+                ? 'Header image placeholder'
+                : 'Thumbnail ready',
             style: textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
-            'Image upload is deferred to the data-layer phase. The mocked repository will attach a generated preview image after publishing.',
+            selectedThumbnail == null
+                ? 'Pick a thumbnail now so the editor flow matches the Firebase-ready contract. Upload remains deferred to the next data-layer commit.'
+                : selectedThumbnail.fileName ??
+                    'A local thumbnail has been selected for this draft.',
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium,
           ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: isBusy ? null : () => _pickThumbnail(context),
+                icon: state.isPickingThumbnail
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        selectedThumbnail == null
+                            ? Icons.add_photo_alternate_outlined
+                            : Icons.refresh_rounded,
+                      ),
+                label: Text(
+                  state.isPickingThumbnail
+                      ? 'Selecting...'
+                      : selectedThumbnail == null
+                          ? 'Select thumbnail'
+                          : 'Change thumbnail',
+                ),
+              ),
+              if (selectedThumbnail != null)
+                TextButton(
+                  onPressed: isBusy ? null : () => _clearThumbnail(context),
+                  child: const Text('Remove'),
+                ),
+            ],
+          ),
+          if (showValidationMessage) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Select a thumbnail before publishing.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildThumbnailPreviewImage(String imagePath) {
+    return Image.file(
+      File(imagePath),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: AppPalette.surfaceContainer,
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.broken_image_outlined,
+          size: 42,
+          color: AppPalette.onSurfaceMuted,
+        ),
       ),
     );
   }
@@ -621,7 +699,8 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
     );
   }
 
-  Widget _buildSuccessState(BuildContext context, ArticleEntity article) {
+  Widget _buildSuccessState(BuildContext context, CreateArticleState state) {
+    final article = state.article!;
     final textTheme = Theme.of(context).textTheme;
 
     return ListView(
@@ -667,7 +746,11 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 style: textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
-              _buildSuccessPreviewCard(context, article),
+              _buildSuccessPreviewCard(
+                context,
+                article,
+                state.selectedThumbnail,
+              ),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -693,7 +776,11 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
     );
   }
 
-  Widget _buildSuccessPreviewCard(BuildContext context, ArticleEntity article) {
+  Widget _buildSuccessPreviewCard(
+    BuildContext context,
+    ArticleEntity article,
+    ArticleThumbnailEntity? selectedThumbnail,
+  ) {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
@@ -708,19 +795,21 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
           SizedBox(
             height: 200,
             width: double.infinity,
-            child: Image.network(
-              article.urlToImage ?? '',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: AppPalette.surfaceContainer,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.image_outlined,
-                  size: 40,
-                  color: AppPalette.onSurfaceMuted,
-                ),
-              ),
-            ),
+            child: selectedThumbnail != null
+                ? _buildThumbnailPreviewImage(selectedThumbnail.path)
+                : Image.network(
+                    article.urlToImage ?? '',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: AppPalette.surfaceContainer,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_outlined,
+                        size: 40,
+                        color: AppPalette.onSurfaceMuted,
+                      ),
+                    ),
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(20),
@@ -792,6 +881,18 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
             description: _descriptionController.text.trim(),
             content: _contentController.text.trim(),
           ),
+        );
+  }
+
+  void _pickThumbnail(BuildContext context) {
+    context.read<CreateArticleBloc>().add(
+          const SelectArticleThumbnailRequested(),
+        );
+  }
+
+  void _clearThumbnail(BuildContext context) {
+    context.read<CreateArticleBloc>().add(
+          const ClearSelectedArticleThumbnail(),
         );
   }
 

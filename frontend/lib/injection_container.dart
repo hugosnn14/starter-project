@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/repository/in_memory_article_repository.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/create_article.dart';
@@ -7,6 +8,7 @@ import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_saved_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/remove_article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/save_article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/select_article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article_details/article_details_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/article/articles_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
@@ -15,9 +17,19 @@ import 'package:news_app_clean_architecture/features/daily_news/presentation/blo
 final sl = GetIt.instance;
 
 Future<void> initializeDependencies() async {
-  sl.registerSingleton<ArticleRepository>(InMemoryArticleRepository());
+  sl.registerLazySingleton<ArticleThumbnailPickerDataSource>(
+    () => ArticleThumbnailPickerDataSourceImpl(),
+  );
+  sl.registerSingleton<ArticleRepository>(
+    InMemoryArticleRepository(
+      thumbnailPickerDataSource: sl(),
+    ),
+  );
 
   sl.registerSingleton<CreateArticleUseCase>(CreateArticleUseCase(sl()));
+  sl.registerSingleton<SelectArticleThumbnailUseCase>(
+    SelectArticleThumbnailUseCase(sl()),
+  );
   sl.registerSingleton<GetArticlesUseCase>(GetArticlesUseCase(sl()));
   sl.registerSingleton<GetArticleByIdUseCase>(GetArticleByIdUseCase(sl()));
   sl.registerSingleton<GetSavedArticleUseCase>(GetSavedArticleUseCase(sl()));
@@ -28,7 +40,7 @@ Future<void> initializeDependencies() async {
   // Legacy blocs remain in the tree for reference, but are intentionally
   // disconnected from dependency injection.
   sl.registerFactory<ArticlesBloc>(() => ArticlesBloc(sl()));
-  sl.registerFactory<CreateArticleBloc>(() => CreateArticleBloc(sl()));
+  sl.registerFactory<CreateArticleBloc>(() => CreateArticleBloc(sl(), sl()));
   sl.registerFactory<ArticleDetailsBloc>(() => ArticleDetailsBloc(sl()));
   sl.registerFactory<SavedArticlesBloc>(
       () => SavedArticlesBloc(sl(), sl(), sl()));

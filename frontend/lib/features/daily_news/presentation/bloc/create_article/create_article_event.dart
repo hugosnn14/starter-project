@@ -7,6 +7,14 @@ abstract class CreateArticleEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+class SelectArticleThumbnailRequested extends CreateArticleEvent {
+  const SelectArticleThumbnailRequested();
+}
+
+class ClearSelectedArticleThumbnail extends CreateArticleEvent {
+  const ClearSelectedArticleThumbnail();
+}
+
 class SubmitCreateArticle extends CreateArticleEvent {
   final String authorName;
   final String title;
