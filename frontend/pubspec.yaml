@@ -1,7 +1,7 @@
 name: news_app_clean_architecture
 description: A new Flutter project.
 
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -25,7 +25,7 @@ dependencies:
 
   #service locator
   get_it: ^7.6.0
-  
+
   #dateFormat
   intl: ^0.18.1
 
@@ -35,13 +35,16 @@ dependencies:
   #make request to api
   retrofit: ^3.0.1
 
-
   #Hooks
   flutter_hooks: ^0.18.3
 
-  #chached image 
+  #cached image
   cached_network_image: ^3.2.0
   firebase_core: ^4.6.0
+  firebase_auth: ^6.3.0
+  cloud_firestore: ^6.2.0
+  firebase_storage: ^13.1.0
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
@@ -61,13 +64,10 @@ dependency_overrides:
   sqflite_common: ^2.5.6
   sqflite_common_ffi: ^2.4.0
   win32: ^5.15.0
-  
 
 flutter:
-
   uses-material-design: true
 
- 
   fonts:
     - family: Muli
       fonts:
