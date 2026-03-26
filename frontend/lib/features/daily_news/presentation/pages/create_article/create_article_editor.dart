@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -15,7 +16,16 @@ import '../../../domain/entities/article.dart';
 import '../../../domain/entities/article_thumbnail.dart';
 
 class CreateArticleEditorPage extends StatefulWidget {
-  const CreateArticleEditorPage({super.key});
+  const CreateArticleEditorPage({
+    super.key,
+    this.draftKey = CreateArticleState.defaultDraftKey,
+    this.initialArticle,
+    this.initialThumbnailPath,
+  });
+
+  final String draftKey;
+  final ArticleEntity? initialArticle;
+  final String? initialThumbnailPath;
 
   @override
   State<CreateArticleEditorPage> createState() =>
@@ -30,10 +40,29 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
   final _descriptionController = TextEditingController();
   final _contentController = TextEditingController();
 
+  ArticleThumbnailEntity? _lastObservedSelectedThumbnail;
+  Timer? _draftSaveTimer;
+  bool _hasAppliedLoadedDraft = false;
   bool _showValidation = false;
 
   @override
+  void initState() {
+    super.initState();
+    _applyInitialArticle();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      context.read<CreateArticleBloc>().add(
+            LoadArticleDraftRequested(draftKey: widget.draftKey),
+          );
+    });
+  }
+
+  @override
   void dispose() {
+    _draftSaveTimer?.cancel();
     _scrollController.dispose();
     _authorController.dispose();
     _titleController.dispose();
@@ -45,8 +74,24 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<CreateArticleBloc, CreateArticleState>(
-      listenWhen: (previous, current) => previous.status != current.status,
+      listenWhen: (previous, current) =>
+          previous.status != current.status ||
+          previous.selectedThumbnail != current.selectedThumbnail ||
+          previous.hasLoadedDraft != current.hasLoadedDraft ||
+          previous.restoredDraft != current.restoredDraft,
       listener: (context, state) {
+        if (state.hasLoadedDraft && !_hasAppliedLoadedDraft) {
+          _applyLoadedDraft(state);
+        }
+
+        if (_hasAppliedLoadedDraft &&
+            _lastObservedSelectedThumbnail != state.selectedThumbnail) {
+          _lastObservedSelectedThumbnail = state.selectedThumbnail;
+          if (!_shouldSkipThumbnailDraftSave(state)) {
+            _persistDraft(immediate: true);
+          }
+        }
+
         if (state.status == CreateArticleStatus.success) {
           context.read<ArticlesBloc>().add(const LoadArticles());
         }
@@ -220,6 +265,7 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 decoration: const InputDecoration(
                   hintText: 'Write a strong headline...',
                 ),
+                onChanged: (_) => _scheduleDraftSave(),
                 validator: (value) => _validateRequired(
                   value,
                   'Add a title before publishing.',
@@ -236,6 +282,7 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 decoration: const InputDecoration(
                   hintText: 'Who is publishing this article?',
                 ),
+                onChanged: (_) => _scheduleDraftSave(),
                 validator: (value) => _validateRequired(
                   value,
                   'Add the author name.',
@@ -258,7 +305,10 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 decoration: const InputDecoration(
                   hintText: 'Summarize the story in one clear paragraph...',
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  setState(() {});
+                  _scheduleDraftSave();
+                },
                 validator: (value) => _validateRequired(
                   value,
                   'Add a short summary.',
@@ -282,7 +332,10 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 decoration: const InputDecoration(
                   hintText: 'Add the complete article body here...',
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  setState(() {});
+                  _scheduleDraftSave();
+                },
                 validator: (value) => _validateRequired(
                   value,
                   'Add the article content.',
@@ -348,9 +401,7 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            selectedThumbnail == null
-                ? 'Cover image'
-                : 'Cover image ready',
+            selectedThumbnail == null ? 'Cover image' : 'Cover image ready',
             style: textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
@@ -792,9 +843,14 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
     context.read<CreateArticleBloc>().add(
           const ClearSelectedArticleThumbnail(),
         );
+    _persistDraft(
+      immediate: true,
+      clearSelectedThumbnail: true,
+    );
   }
 
   void _resetEditor() {
+    _draftSaveTimer?.cancel();
     _authorController.clear();
     _titleController.clear();
     _descriptionController.clear();
@@ -835,5 +891,80 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
       AppRoutes.articleDetails,
       arguments: articleId,
     );
+  }
+
+  void _applyInitialArticle() {
+    final initialArticle = widget.initialArticle;
+    if (initialArticle == null) {
+      return;
+    }
+
+    _authorController.text = initialArticle.author ?? '';
+    _titleController.text = initialArticle.title ?? '';
+    _descriptionController.text = initialArticle.description ?? '';
+    _contentController.text = initialArticle.content ?? '';
+  }
+
+  void _applyLoadedDraft(CreateArticleState state) {
+    final restoredDraft = state.restoredDraft;
+    if (restoredDraft != null) {
+      _authorController.text = restoredDraft.authorName;
+      _titleController.text = restoredDraft.title;
+      _descriptionController.text = restoredDraft.description;
+      _contentController.text = restoredDraft.content;
+    }
+
+    setState(() {
+      _hasAppliedLoadedDraft = true;
+    });
+  }
+
+  void _scheduleDraftSave() {
+    if (!_hasAppliedLoadedDraft) {
+      return;
+    }
+
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(
+      const Duration(milliseconds: 500),
+      () => _persistDraft(),
+    );
+  }
+
+  void _persistDraft({
+    bool immediate = false,
+    bool clearSelectedThumbnail = false,
+  }) {
+    if (!_hasAppliedLoadedDraft && !immediate) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    context.read<CreateArticleBloc>().add(
+          PersistArticleDraftRequested(
+            draftKey: widget.draftKey,
+            authorName: _authorController.text.trim(),
+            title: _titleController.text.trim(),
+            description: _descriptionController.text.trim(),
+            content: _contentController.text.trim(),
+            thumbnailPath: widget.initialThumbnailPath,
+            clearSelectedThumbnail: clearSelectedThumbnail,
+          ),
+        );
+  }
+
+  bool _shouldSkipThumbnailDraftSave(CreateArticleState state) {
+    if (state.status == CreateArticleStatus.success) {
+      return true;
+    }
+
+    return state.selectedThumbnail == null &&
+        _authorController.text.trim().isEmpty &&
+        _titleController.text.trim().isEmpty &&
+        _descriptionController.text.trim().isEmpty &&
+        _contentController.text.trim().isEmpty;
   }
 }

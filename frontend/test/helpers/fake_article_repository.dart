@@ -1,5 +1,6 @@
 import 'package:news_app_clean_architecture/core/resources/data_state.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 
@@ -16,11 +17,17 @@ class FakeArticleRepository implements ArticleRepository {
     this.shouldThrowOnGetSavedArticles = false,
     this.shouldThrowOnSaveArticle = false,
     this.shouldThrowOnRemoveArticle = false,
+    ArticleDraftEntity? draft,
+    this.shouldThrowOnGetArticleDraft = false,
+    this.shouldThrowOnSaveArticleDraft = false,
+    this.shouldThrowOnClearArticleDraft = false,
   })  : _articles = List<ArticleEntity>.of(articles),
-        _savedArticles = List<ArticleEntity>.of(savedArticles);
+        _savedArticles = List<ArticleEntity>.of(savedArticles),
+        _draft = draft;
 
   final List<ArticleEntity> _articles;
   final List<ArticleEntity> _savedArticles;
+  ArticleDraftEntity? _draft;
   final ArticleThumbnailEntity? pickedThumbnail;
   final bool shouldThrowOnGetArticles;
   final bool shouldThrowOnPickArticleThumbnail;
@@ -30,6 +37,9 @@ class FakeArticleRepository implements ArticleRepository {
   final bool shouldThrowOnGetSavedArticles;
   final bool shouldThrowOnSaveArticle;
   final bool shouldThrowOnRemoveArticle;
+  final bool shouldThrowOnGetArticleDraft;
+  final bool shouldThrowOnSaveArticleDraft;
+  final bool shouldThrowOnClearArticleDraft;
 
   @override
   Future<ArticleThumbnailEntity?> pickArticleThumbnail() async {
@@ -113,5 +123,38 @@ class FakeArticleRepository implements ArticleRepository {
     }
 
     _savedArticles.removeWhere((item) => item.id == article.id);
+  }
+
+  @override
+  Future<ArticleDraftEntity?> getArticleDraft(String draftKey) async {
+    if (shouldThrowOnGetArticleDraft) {
+      throw Exception('getArticleDraft failed');
+    }
+
+    if (_draft?.draftKey != draftKey) {
+      return null;
+    }
+
+    return _draft;
+  }
+
+  @override
+  Future<void> saveArticleDraft(ArticleDraftEntity draft) async {
+    if (shouldThrowOnSaveArticleDraft) {
+      throw Exception('saveArticleDraft failed');
+    }
+
+    _draft = draft;
+  }
+
+  @override
+  Future<void> clearArticleDraft(String draftKey) async {
+    if (shouldThrowOnClearArticleDraft) {
+      throw Exception('clearArticleDraft failed');
+    }
+
+    if (_draft?.draftKey == draftKey) {
+      _draft = null;
+    }
   }
 }

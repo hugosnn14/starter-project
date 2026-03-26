@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_thumbnail.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/clear_article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/create_article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_article_draft.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/save_article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/select_article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_event.dart';
@@ -20,7 +24,10 @@ void main() {
         pickedThumbnail: pickedThumbnail,
       );
       final bloc = CreateArticleBloc(
+        ClearArticleDraftUseCase(repository),
         CreateArticleUseCase(repository),
+        GetArticleDraftUseCase(repository),
+        SaveArticleDraftUseCase(repository),
         SelectArticleThumbnailUseCase(repository),
       );
 
@@ -52,7 +59,10 @@ void main() {
     test('returns to initial when the editor is reset', () async {
       final repository = FakeArticleRepository();
       final bloc = CreateArticleBloc(
+        ClearArticleDraftUseCase(repository),
         CreateArticleUseCase(repository),
+        GetArticleDraftUseCase(repository),
+        SaveArticleDraftUseCase(repository),
         SelectArticleThumbnailUseCase(repository),
       );
 
@@ -72,7 +82,10 @@ void main() {
         () async {
       final repository = FakeArticleRepository();
       final bloc = CreateArticleBloc(
+        ClearArticleDraftUseCase(repository),
         CreateArticleUseCase(repository),
+        GetArticleDraftUseCase(repository),
+        SaveArticleDraftUseCase(repository),
         SelectArticleThumbnailUseCase(repository),
       );
 
@@ -104,7 +117,10 @@ void main() {
         shouldThrowOnCreateArticle: true,
       );
       final bloc = CreateArticleBloc(
+        ClearArticleDraftUseCase(repository),
         CreateArticleUseCase(repository),
+        GetArticleDraftUseCase(repository),
+        SaveArticleDraftUseCase(repository),
         SelectArticleThumbnailUseCase(repository),
       );
 
@@ -144,7 +160,10 @@ void main() {
         ),
       );
       final bloc = CreateArticleBloc(
+        ClearArticleDraftUseCase(repository),
         CreateArticleUseCase(repository),
+        GetArticleDraftUseCase(repository),
+        SaveArticleDraftUseCase(repository),
         SelectArticleThumbnailUseCase(repository),
       );
 
@@ -169,6 +188,44 @@ void main() {
         emittedStates[3].errorMessage,
         'Firebase Auth no permite el acceso anonimo en este proyecto.',
       );
+
+      await bloc.close();
+    });
+
+    test('loads a persisted draft into state', () async {
+      final repository = FakeArticleRepository(
+        draft: ArticleDraftEntity(
+          draftKey: CreateArticleState.defaultDraftKey,
+          authorName: 'Hugo',
+          title: 'Recovered draft',
+          description: 'Draft summary',
+          content: 'Draft body',
+          thumbnailLocalPath: pickedThumbnail.path,
+          fileName: pickedThumbnail.fileName,
+          updatedAt: DateTime(2026, 3, 26),
+        ),
+      );
+      final bloc = CreateArticleBloc(
+        ClearArticleDraftUseCase(repository),
+        CreateArticleUseCase(repository),
+        GetArticleDraftUseCase(repository),
+        SaveArticleDraftUseCase(repository),
+        SelectArticleThumbnailUseCase(repository),
+      );
+
+      final emittedStatesFuture = bloc.stream.take(1).toList();
+
+      bloc.add(
+        const LoadArticleDraftRequested(
+          draftKey: CreateArticleState.defaultDraftKey,
+        ),
+      );
+
+      final emittedStates = await emittedStatesFuture;
+
+      expect(emittedStates[0].hasLoadedDraft, isTrue);
+      expect(emittedStates[0].restoredDraft?.title, 'Recovered draft');
+      expect(emittedStates[0].selectedThumbnail, pickedThumbnail);
 
       await bloc.close();
     });

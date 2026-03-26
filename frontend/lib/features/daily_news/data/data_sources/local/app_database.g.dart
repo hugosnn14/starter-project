@@ -54,6 +54,7 @@ class _$AppDatabase extends AppDatabase {
   }
 
   ArticleDao? _articleDAOInstance;
+  ArticleDraftDao? _articleDraftDaoInstance;
 
   Future<sqflite.Database> open(
     String path,
@@ -61,7 +62,7 @@ class _$AppDatabase extends AppDatabase {
     Callback? callback,
   ]) async {
     final databaseOptions = sqflite.OpenDatabaseOptions(
-      version: 1,
+      version: 2,
       onConfigure: (database) async {
         await database.execute('PRAGMA foreign_keys = ON');
         await callback?.onConfigure?.call(database);
@@ -83,6 +84,9 @@ class _$AppDatabase extends AppDatabase {
         await database.execute(
           'CREATE TABLE IF NOT EXISTS `article` (`id` TEXT, `author` TEXT, `title` TEXT, `description` TEXT, `url` TEXT, `urlToImage` TEXT, `publishedAt` TEXT, `content` TEXT, PRIMARY KEY (`id`))',
         );
+        await database.execute(
+          'CREATE TABLE IF NOT EXISTS `article_draft` (`draftKey` TEXT, `authorName` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `content` TEXT NOT NULL, `thumbnailPath` TEXT, `thumbnailLocalPath` TEXT, `fileName` TEXT, `updatedAtEpochMs` INTEGER NOT NULL, PRIMARY KEY (`draftKey`))',
+        );
 
         await callback?.onCreate?.call(database, version);
       },
@@ -93,6 +97,12 @@ class _$AppDatabase extends AppDatabase {
   @override
   ArticleDao get articleDAO {
     return _articleDAOInstance ??= _$ArticleDao(database, changeListener);
+  }
+
+  @override
+  ArticleDraftDao get articleDraftDao {
+    return _articleDraftDaoInstance ??=
+        _$ArticleDraftDao(database, changeListener);
   }
 }
 
@@ -167,5 +177,68 @@ class _$ArticleDao extends ArticleDao {
   @override
   Future<void> deleteArticle(ArticleModel articleModel) async {
     await _articleModelDeletionAdapter.delete(articleModel);
+  }
+}
+
+class _$ArticleDraftDao extends ArticleDraftDao {
+  _$ArticleDraftDao(this.database, this.changeListener)
+      : _queryAdapter = QueryAdapter(database),
+        _articleDraftModelInsertionAdapter = InsertionAdapter(
+          database,
+          'article_draft',
+          (ArticleDraftModel item) => <String, Object?>{
+            'draftKey': item.draftKey,
+            'authorName': item.authorName,
+            'title': item.title,
+            'description': item.description,
+            'content': item.content,
+            'thumbnailPath': item.thumbnailPath,
+            'thumbnailLocalPath': item.thumbnailLocalPath,
+            'fileName': item.fileName,
+            'updatedAtEpochMs': item.updatedAtEpochMs,
+          },
+        );
+
+  final sqflite.DatabaseExecutor database;
+
+  final StreamController<String> changeListener;
+
+  final QueryAdapter _queryAdapter;
+
+  final InsertionAdapter<ArticleDraftModel> _articleDraftModelInsertionAdapter;
+
+  @override
+  Future<ArticleDraftModel?> getDraftByKey(String draftKey) async {
+    return _queryAdapter.query(
+      'SELECT * FROM article_draft WHERE draftKey = ?1 LIMIT 1',
+      mapper: (Map<String, Object?> row) => ArticleDraftModel(
+        draftKey: row['draftKey'] as String,
+        authorName: row['authorName'] as String,
+        title: row['title'] as String,
+        description: row['description'] as String,
+        content: row['content'] as String,
+        updatedAtEpochMs: row['updatedAtEpochMs'] as int,
+        thumbnailPath: row['thumbnailPath'] as String?,
+        thumbnailLocalPath: row['thumbnailLocalPath'] as String?,
+        fileName: row['fileName'] as String?,
+      ),
+      arguments: [draftKey],
+    );
+  }
+
+  @override
+  Future<void> saveDraft(ArticleDraftModel articleDraft) async {
+    await _articleDraftModelInsertionAdapter.insert(
+      articleDraft,
+      OnConflictStrategy.replace,
+    );
+  }
+
+  @override
+  Future<void> deleteDraftByKey(String draftKey) async {
+    await _queryAdapter.queryNoReturn(
+      'DELETE FROM article_draft WHERE draftKey = ?1',
+      arguments: [draftKey],
+    );
   }
 }

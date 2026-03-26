@@ -1,10 +1,12 @@
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_draft_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/saved_article_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/models/article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_draft.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 
@@ -14,17 +16,20 @@ import '../../../../core/resources/data_state.dart';
 class ArticleRepositoryImpl implements ArticleRepository {
   ArticleRepositoryImpl({
     required ArticleAuthRemoteDataSource authRemoteDataSource,
+    required ArticleDraftLocalDataSource articleDraftLocalDataSource,
     required ArticleFirestoreRemoteDataSource firestoreRemoteDataSource,
     required SavedArticleLocalDataSource savedArticleLocalDataSource,
     required ArticleStorageRemoteDataSource storageRemoteDataSource,
     required ArticleThumbnailPickerDataSource thumbnailPickerDataSource,
   })  : _authRemoteDataSource = authRemoteDataSource,
+        _articleDraftLocalDataSource = articleDraftLocalDataSource,
         _firestoreRemoteDataSource = firestoreRemoteDataSource,
         _savedArticleLocalDataSource = savedArticleLocalDataSource,
         _storageRemoteDataSource = storageRemoteDataSource,
         _thumbnailPickerDataSource = thumbnailPickerDataSource;
 
   final ArticleAuthRemoteDataSource _authRemoteDataSource;
+  final ArticleDraftLocalDataSource _articleDraftLocalDataSource;
   final ArticleFirestoreRemoteDataSource _firestoreRemoteDataSource;
   final SavedArticleLocalDataSource _savedArticleLocalDataSource;
   final ArticleStorageRemoteDataSource _storageRemoteDataSource;
@@ -130,6 +135,21 @@ class ArticleRepositoryImpl implements ArticleRepository {
   @override
   Future<void> removeArticle(ArticleEntity article) async {
     await _savedArticleLocalDataSource.removeArticle(article);
+  }
+
+  @override
+  Future<ArticleDraftEntity?> getArticleDraft(String draftKey) {
+    return _articleDraftLocalDataSource.getDraft(draftKey);
+  }
+
+  @override
+  Future<void> saveArticleDraft(ArticleDraftEntity draft) {
+    return _articleDraftLocalDataSource.saveDraft(draft);
+  }
+
+  @override
+  Future<void> clearArticleDraft(String draftKey) {
+    return _articleDraftLocalDataSource.clearDraft(draftKey);
   }
 
   Future<List<ArticleEntity>> _mapArticles(

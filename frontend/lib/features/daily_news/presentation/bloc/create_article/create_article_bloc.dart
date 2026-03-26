@@ -1,22 +1,97 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../domain/entities/article_draft.dart';
+import '../../../domain/usecases/clear_article_draft.dart';
 import '../../../domain/usecases/create_article.dart';
+import '../../../domain/usecases/get_article_draft.dart';
+import '../../../domain/usecases/save_article_draft.dart';
 import '../../../domain/usecases/select_article_thumbnail.dart';
 import 'create_article_event.dart';
 import 'create_article_state.dart';
 
 class CreateArticleBloc extends Bloc<CreateArticleEvent, CreateArticleState> {
+  final ClearArticleDraftUseCase _clearArticleDraftUseCase;
   final CreateArticleUseCase _createArticleUseCase;
+  final GetArticleDraftUseCase _getArticleDraftUseCase;
+  final SaveArticleDraftUseCase _saveArticleDraftUseCase;
   final SelectArticleThumbnailUseCase _selectArticleThumbnailUseCase;
 
   CreateArticleBloc(
+    this._clearArticleDraftUseCase,
     this._createArticleUseCase,
+    this._getArticleDraftUseCase,
+    this._saveArticleDraftUseCase,
     this._selectArticleThumbnailUseCase,
   ) : super(const CreateArticleState()) {
+    on<LoadArticleDraftRequested>(_onLoadArticleDraftRequested);
+    on<PersistArticleDraftRequested>(_onPersistArticleDraftRequested);
     on<SelectArticleThumbnailRequested>(_onSelectArticleThumbnailRequested);
     on<ClearSelectedArticleThumbnail>(_onClearSelectedArticleThumbnail);
     on<SubmitCreateArticle>(_onSubmitCreateArticle);
     on<ResetCreateArticle>(_onResetCreateArticle);
+  }
+
+  Future<void> _onLoadArticleDraftRequested(
+    LoadArticleDraftRequested event,
+    Emitter<CreateArticleState> emit,
+  ) async {
+    try {
+      final draft = await _getArticleDraftUseCase(params: event.draftKey);
+
+      emit(
+        state.copyWith(
+          status: CreateArticleStatus.initial,
+          draftKey: event.draftKey,
+          restoredDraft: draft,
+          clearRestoredDraft: draft == null,
+          hasLoadedDraft: true,
+          selectedThumbnail: draft?.selectedThumbnail,
+          clearSelectedThumbnail: draft?.selectedThumbnail == null,
+          isPickingThumbnail: false,
+          clearErrorMessage: true,
+        ),
+      );
+    } catch (_) {
+      emit(
+        state.copyWith(
+          status: CreateArticleStatus.initial,
+          draftKey: event.draftKey,
+          hasLoadedDraft: true,
+          clearRestoredDraft: true,
+          isPickingThumbnail: false,
+          clearErrorMessage: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onPersistArticleDraftRequested(
+    PersistArticleDraftRequested event,
+    Emitter<CreateArticleState> emit,
+  ) async {
+    try {
+      final selectedThumbnail =
+          event.clearSelectedThumbnail ? null : state.selectedThumbnail;
+
+      await _saveArticleDraftUseCase(
+        params: ArticleDraftEntity(
+          draftKey: event.draftKey,
+          authorName: event.authorName,
+          title: event.title,
+          description: event.description,
+          content: event.content,
+          thumbnailPath:
+              event.clearSelectedThumbnail ? null : event.thumbnailPath,
+          thumbnailLocalPath:
+              event.clearSelectedThumbnail ? null : selectedThumbnail?.path,
+          fileName:
+              event.clearSelectedThumbnail ? null : selectedThumbnail?.fileName,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      // Draft autosave should never interrupt the active editor flow.
+    }
   }
 
   Future<void> _onSelectArticleThumbnailRequested(
@@ -108,11 +183,14 @@ class CreateArticleBloc extends Bloc<CreateArticleEvent, CreateArticleState> {
           thumbnail: state.selectedThumbnail!,
         ),
       );
+      await _clearArticleDraftUseCase(params: state.draftKey);
 
       emit(
         state.copyWith(
           status: CreateArticleStatus.success,
           article: createdArticle,
+          clearRestoredDraft: true,
+          hasLoadedDraft: true,
           isPickingThumbnail: false,
           clearErrorMessage: true,
         ),
@@ -129,10 +207,16 @@ class CreateArticleBloc extends Bloc<CreateArticleEvent, CreateArticleState> {
     }
   }
 
-  void _onResetCreateArticle(
+  Future<void> _onResetCreateArticle(
     ResetCreateArticle event,
     Emitter<CreateArticleState> emit,
-  ) {
-    emit(const CreateArticleState());
+  ) async {
+    await _clearArticleDraftUseCase(params: state.draftKey);
+    emit(
+      CreateArticleState(
+        draftKey: state.draftKey,
+        hasLoadedDraft: true,
+      ),
+    );
   }
 }
