@@ -8,7 +8,7 @@ abstract class ArticleDetailsEvent extends Equatable {
 }
 
 class LoadArticleDetails extends ArticleDetailsEvent {
-  final int articleId;
+  final String articleId;
 
   const LoadArticleDetails(this.articleId);
 

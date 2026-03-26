@@ -1,19 +1,32 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/create_article.dart';
+import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/select_article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_bloc.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_event.dart';
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_state.dart';
 import '../../../../../helpers/fake_article_repository.dart';
 
 void main() {
+  const pickedThumbnail = ArticleThumbnailEntity(
+    path: '/tmp/thumbnail.jpg',
+    fileName: 'thumbnail.jpg',
+  );
+
   group('CreateArticleBloc', () {
-    test('emits submitting and success when an article is created', () async {
+    test('selects a thumbnail and emits success when the article is created',
+        () async {
+      final repository = FakeArticleRepository(
+        pickedThumbnail: pickedThumbnail,
+      );
       final bloc = CreateArticleBloc(
-        CreateArticleUseCase(ArticleRepositoryImpl()),
+        CreateArticleUseCase(repository),
+        SelectArticleThumbnailUseCase(repository),
       );
 
-      final emittedStatesFuture = bloc.stream.take(2).toList();
+      final emittedStatesFuture = bloc.stream.take(4).toList();
+
+      bloc.add(const SelectArticleThumbnailRequested());
 
       bloc.add(
         const SubmitCreateArticle(
@@ -26,17 +39,21 @@ void main() {
 
       final emittedStates = await emittedStatesFuture;
 
-      expect(emittedStates[0].status, CreateArticleStatus.submitting);
-      expect(emittedStates[1].status, CreateArticleStatus.success);
-      expect(emittedStates[1].article, isNotNull);
-      expect(emittedStates[1].article!.title, 'Create flow works');
+      expect(emittedStates[0].isPickingThumbnail, isTrue);
+      expect(emittedStates[1].selectedThumbnail, pickedThumbnail);
+      expect(emittedStates[2].status, CreateArticleStatus.submitting);
+      expect(emittedStates[3].status, CreateArticleStatus.success);
+      expect(emittedStates[3].article, isNotNull);
+      expect(emittedStates[3].article!.title, 'Create flow works');
 
       await bloc.close();
     });
 
     test('returns to initial when the editor is reset', () async {
+      final repository = FakeArticleRepository();
       final bloc = CreateArticleBloc(
-        CreateArticleUseCase(ArticleRepositoryImpl()),
+        CreateArticleUseCase(repository),
+        SelectArticleThumbnailUseCase(repository),
       );
 
       final emittedStatesFuture = bloc.stream.take(1).toList();
@@ -51,14 +68,49 @@ void main() {
       await bloc.close();
     });
 
-    test('emits submitting and failure when article creation throws', () async {
+    test('emits failure when publishing without a selected thumbnail',
+        () async {
+      final repository = FakeArticleRepository();
       final bloc = CreateArticleBloc(
-        CreateArticleUseCase(
-          FakeArticleRepository(shouldThrowOnCreateArticle: true),
+        CreateArticleUseCase(repository),
+        SelectArticleThumbnailUseCase(repository),
+      );
+
+      final emittedStatesFuture = bloc.stream.take(1).toList();
+
+      bloc.add(
+        const SubmitCreateArticle(
+          authorName: 'Hugo',
+          title: 'Missing thumbnail',
+          description: 'The editor should block publishing first.',
+          content: 'A thumbnail is now required before publishing starts.',
         ),
       );
 
-      final emittedStatesFuture = bloc.stream.take(2).toList();
+      final emittedStates = await emittedStatesFuture;
+
+      expect(emittedStates[0].status, CreateArticleStatus.failure);
+      expect(
+        emittedStates[0].errorMessage,
+        'Selecciona una miniatura antes de publicar.',
+      );
+
+      await bloc.close();
+    });
+
+    test('emits submitting and failure when article creation throws', () async {
+      final repository = FakeArticleRepository(
+        pickedThumbnail: pickedThumbnail,
+        shouldThrowOnCreateArticle: true,
+      );
+      final bloc = CreateArticleBloc(
+        CreateArticleUseCase(repository),
+        SelectArticleThumbnailUseCase(repository),
+      );
+
+      final emittedStatesFuture = bloc.stream.take(4).toList();
+
+      bloc.add(const SelectArticleThumbnailRequested());
 
       bloc.add(
         const SubmitCreateArticle(
@@ -71,11 +123,51 @@ void main() {
 
       final emittedStates = await emittedStatesFuture;
 
-      expect(emittedStates[0].status, CreateArticleStatus.submitting);
-      expect(emittedStates[1].status, CreateArticleStatus.failure);
+      expect(emittedStates[0].isPickingThumbnail, isTrue);
+      expect(emittedStates[1].selectedThumbnail, pickedThumbnail);
+      expect(emittedStates[2].status, CreateArticleStatus.submitting);
+      expect(emittedStates[3].status, CreateArticleStatus.failure);
       expect(
-        emittedStates[1].errorMessage,
+        emittedStates[3].errorMessage,
         'No se pudo crear el articulo.',
+      );
+
+      await bloc.close();
+    });
+
+    test('surfaces a StateError message when publishing fails with context',
+        () async {
+      final repository = FakeArticleRepository(
+        pickedThumbnail: pickedThumbnail,
+        createArticleError: StateError(
+          'Firebase Auth no permite el acceso anonimo en este proyecto.',
+        ),
+      );
+      final bloc = CreateArticleBloc(
+        CreateArticleUseCase(repository),
+        SelectArticleThumbnailUseCase(repository),
+      );
+
+      final emittedStatesFuture = bloc.stream.take(4).toList();
+
+      bloc.add(const SelectArticleThumbnailRequested());
+
+      bloc.add(
+        const SubmitCreateArticle(
+          authorName: 'Hugo',
+          title: 'Auth blocked',
+          description: 'Publishing should explain why it failed.',
+          content: 'The user should get the contextual error message.',
+        ),
+      );
+
+      final emittedStates = await emittedStatesFuture;
+
+      expect(emittedStates[2].status, CreateArticleStatus.submitting);
+      expect(emittedStates[3].status, CreateArticleStatus.failure);
+      expect(
+        emittedStates[3].errorMessage,
+        'Firebase Auth no permite el acceso anonimo en este proyecto.',
       );
 
       await bloc.close();

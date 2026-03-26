@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/get_articles.dart';
+
+import '../../../../helpers/in_memory_article_repository.dart';
 
 void main() {
   group('GetArticlesUseCase', () {
-    test('returns the seeded articles from the mock repository', () async {
-      final useCase = GetArticlesUseCase(ArticleRepositoryImpl());
+    test('returns the seeded articles from the test repository', () async {
+      final useCase = GetArticlesUseCase(InMemoryArticleRepository());
 
       final articles = await useCase();
 

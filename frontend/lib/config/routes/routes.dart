@@ -19,9 +19,8 @@ class AppRoutes {
   static const String savedArticles = '/saved-articles';
 
   static Route onGenerateRoutes(RouteSettings settings) {
-    // Active navigation only exposes the current Bloc-based presentation flow.
-    // Legacy screens remain in the repository, but are intentionally not wired
-    // through this route table anymore.
+    // Active navigation only exposes the current MVP article flow.
+    // Legacy screens are intentionally excluded from this route table.
     switch (settings.name) {
       case home:
         return _materialRoute(const DailyNews(), settings);
@@ -66,8 +65,8 @@ class AppRoutes {
     );
   }
 
-  static int _extractArticleId(Object? arguments) {
-    if (arguments is int) {
+  static String _extractArticleId(Object? arguments) {
+    if (arguments is String) {
       return arguments;
     }
 

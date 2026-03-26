@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:news_app_clean_architecture/features/daily_news/presentation/blo
 import 'package:news_app_clean_architecture/features/daily_news/presentation/bloc/create_article/create_article_state.dart';
 
 import '../../../domain/entities/article.dart';
+import '../../../domain/entities/article_thumbnail.dart';
 
 class CreateArticleEditorPage extends StatefulWidget {
   const CreateArticleEditorPage({super.key});
@@ -120,19 +122,19 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
 
   Widget _buildBody(BuildContext context, CreateArticleState state) {
     if (state.status == CreateArticleStatus.success && state.article != null) {
-      return _buildSuccessState(context, state.article!);
+      return _buildSuccessState(context, state);
     }
 
     return Stack(
       children: [
-        _buildEditor(context),
+        _buildEditor(context, state),
         if (state.status == CreateArticleStatus.submitting)
           _buildPublishingOverlay(context),
       ],
     );
   }
 
-  Widget _buildEditor(BuildContext context) {
+  Widget _buildEditor(BuildContext context, CreateArticleState state) {
     final textTheme = Theme.of(context).textTheme;
 
     return SingleChildScrollView(
@@ -193,7 +195,7 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'This editor keeps the mocked business flow intact while simulating a polished publishing experience.',
+                    'Write a real article, attach a cover image, and publish it to the live editorial feed.',
                     style: textTheme.bodyLarge?.copyWith(
                       color: AppPalette.onSurfaceMuted,
                     ),
@@ -202,7 +204,7 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
               ),
             ),
             const SizedBox(height: 24),
-            _buildHeroAttachmentCard(context),
+            _buildHeroAttachmentCard(context, state),
             const SizedBox(height: 24),
             _buildFieldSection(
               context,
@@ -287,16 +289,21 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            _buildToolbarCard(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeroAttachmentCard(BuildContext context) {
+  Widget _buildHeroAttachmentCard(
+    BuildContext context,
+    CreateArticleState state,
+  ) {
     final textTheme = Theme.of(context).textTheme;
+    final selectedThumbnail = state.selectedThumbnail;
+    final isBusy = state.isPickingThumbnail ||
+        state.status == CreateArticleStatus.submitting;
+    final showValidationMessage = _showValidation && selectedThumbnail == null;
 
     return Container(
       width: double.infinity,
@@ -328,26 +335,95 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Center(
-              child: Icon(
-                Icons.add_photo_alternate_outlined,
-                size: 52,
-                color: AppPalette.primary,
-              ),
-            ),
+            clipBehavior: Clip.antiAlias,
+            child: selectedThumbnail != null
+                ? _buildThumbnailPreviewImage(selectedThumbnail.path)
+                : const Center(
+                    child: Icon(
+                      Icons.add_photo_alternate_outlined,
+                      size: 52,
+                      color: AppPalette.primary,
+                    ),
+                  ),
           ),
           const SizedBox(height: 16),
           Text(
-            'Header image placeholder',
+            selectedThumbnail == null
+                ? 'Cover image'
+                : 'Cover image ready',
             style: textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
-            'Image upload is deferred to the data-layer phase. The mocked repository will attach a generated preview image after publishing.',
+            selectedThumbnail == null
+                ? 'Select the image that will be uploaded to Firebase Storage when the article is published.'
+                : selectedThumbnail.fileName ??
+                    'The selected image will be uploaded with this article.',
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium,
           ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: isBusy ? null : () => _pickThumbnail(context),
+                icon: state.isPickingThumbnail
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        selectedThumbnail == null
+                            ? Icons.add_photo_alternate_outlined
+                            : Icons.refresh_rounded,
+                      ),
+                label: Text(
+                  state.isPickingThumbnail
+                      ? 'Selecting...'
+                      : selectedThumbnail == null
+                          ? 'Select thumbnail'
+                          : 'Change thumbnail',
+                ),
+              ),
+              if (selectedThumbnail != null)
+                TextButton(
+                  onPressed: isBusy ? null : () => _clearThumbnail(context),
+                  child: const Text('Remove'),
+                ),
+            ],
+          ),
+          if (showValidationMessage) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Select a thumbnail before publishing.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildThumbnailPreviewImage(String imagePath) {
+    return Image.file(
+      File(imagePath),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: AppPalette.surfaceContainer,
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.broken_image_outlined,
+          size: 42,
+          color: AppPalette.onSurfaceMuted,
+        ),
       ),
     );
   }
@@ -408,106 +484,6 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
       child: Text(
         '$current / $max',
         style: Theme.of(context).textTheme.labelMedium,
-      ),
-    );
-  }
-
-  Widget _buildToolbarCard(BuildContext context) {
-    const toolbarActions = [
-      _FormattingAction(
-        icon: Icons.format_bold_rounded,
-        label: 'Bold',
-      ),
-      _FormattingAction(
-        icon: Icons.format_italic_rounded,
-        label: 'Italic',
-      ),
-      _FormattingAction(
-        icon: Icons.link_rounded,
-        label: 'Link',
-      ),
-      _FormattingAction(
-        icon: Icons.format_quote_rounded,
-        label: 'Quote',
-      ),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppPalette.surface,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: AppPalette.shadow,
-            blurRadius: 24,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Formatting',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Rich text actions are mocked in this phase. Tap a control to see the planned behavior.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppPalette.onSurfaceMuted,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.end,
-            children: toolbarActions
-                .map(
-                  (action) => Tooltip(
-                    message: '${action.label} formatting (mock)',
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () =>
-                          _showFormattingMessage(context, action.label),
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: AppPalette.surfaceContainer,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          action.icon,
-                          size: 20,
-                          color: AppPalette.onSurfaceMuted,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFormattingMessage(BuildContext context, String actionLabel) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '$actionLabel formatting is a UI stub in this mocked phase.',
-        ),
       ),
     );
   }
@@ -621,7 +597,8 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
     );
   }
 
-  Widget _buildSuccessState(BuildContext context, ArticleEntity article) {
+  Widget _buildSuccessState(BuildContext context, CreateArticleState state) {
+    final article = state.article!;
     final textTheme = Theme.of(context).textTheme;
 
     return ListView(
@@ -662,12 +639,16 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
               ),
               const SizedBox(height: 10),
               Text(
-                'The new article is already available in the mocked feed and ready to be reviewed.',
+                'The new article is already available in the feed and ready to be reviewed.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
-              _buildSuccessPreviewCard(context, article),
+              _buildSuccessPreviewCard(
+                context,
+                article,
+                state.selectedThumbnail,
+              ),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -693,7 +674,11 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
     );
   }
 
-  Widget _buildSuccessPreviewCard(BuildContext context, ArticleEntity article) {
+  Widget _buildSuccessPreviewCard(
+    BuildContext context,
+    ArticleEntity article,
+    ArticleThumbnailEntity? selectedThumbnail,
+  ) {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
@@ -708,19 +693,21 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
           SizedBox(
             height: 200,
             width: double.infinity,
-            child: Image.network(
-              article.urlToImage ?? '',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: AppPalette.surfaceContainer,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.image_outlined,
-                  size: 40,
-                  color: AppPalette.onSurfaceMuted,
-                ),
-              ),
-            ),
+            child: selectedThumbnail != null
+                ? _buildThumbnailPreviewImage(selectedThumbnail.path)
+                : Image.network(
+                    article.urlToImage ?? '',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: AppPalette.surfaceContainer,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_outlined,
+                        size: 40,
+                        color: AppPalette.onSurfaceMuted,
+                      ),
+                    ),
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.all(20),
@@ -795,6 +782,18 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
         );
   }
 
+  void _pickThumbnail(BuildContext context) {
+    context.read<CreateArticleBloc>().add(
+          const SelectArticleThumbnailRequested(),
+        );
+  }
+
+  void _clearThumbnail(BuildContext context) {
+    context.read<CreateArticleBloc>().add(
+          const ClearSelectedArticleThumbnail(),
+        );
+  }
+
   void _resetEditor() {
     _authorController.clear();
     _titleController.clear();
@@ -837,14 +836,4 @@ class _CreateArticleEditorPageState extends State<CreateArticleEditorPage> {
       arguments: articleId,
     );
   }
-}
-
-class _FormattingAction {
-  final IconData icon;
-  final String label;
-
-  const _FormattingAction({
-    required this.icon,
-    required this.label,
-  });
 }

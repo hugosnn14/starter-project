@@ -107,7 +107,7 @@ class DailyNews extends StatelessWidget {
           eyebrow: 'Newsroom interrupted',
           title: 'The feed could not be refreshed',
           description:
-              'The presentation layer is up, but the mocked newsroom did not return data.',
+              'The app is running, but the latest published articles could not be loaded.',
         ),
         const SizedBox(height: 24),
         _StateMessageCard(
@@ -190,7 +190,7 @@ class DailyNews extends StatelessWidget {
               icon: Icons.library_add_check_rounded,
               title: 'The issue is concise for now',
               description:
-                  'Publish another article to expand the list view beneath the featured story.',
+                  'Publish another article to expand the feed beneath the featured story.',
               primaryActionLabel: 'Create another article',
               onPrimaryAction: () => _onCreateArticlePressed(context),
               isCompact: true,

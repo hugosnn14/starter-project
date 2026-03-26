@@ -99,7 +99,7 @@ class SavedArticles extends StatelessWidget {
         const _SavedHeader(
           title: 'Saved reads unavailable',
           subtitle:
-              'The saved articles list could not be refreshed from the mocked store.',
+              'The saved articles list could not be refreshed for this session.',
         ),
         const SizedBox(height: 16),
         _SavedMessageCard(
@@ -149,7 +149,7 @@ class SavedArticles extends StatelessWidget {
           title:
               '${articles.length} saved ${articles.length == 1 ? 'article' : 'articles'}',
           subtitle:
-              'A persistent shortlist built on top of the mock repository.',
+              'A session shortlist built from the articles you bookmarked in this run.',
         ),
         const SizedBox(height: 12),
         ...articles.map(
