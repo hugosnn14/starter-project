@@ -67,6 +67,7 @@ class SavedArticles extends StatelessWidget {
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
       itemCount: articles.length,
       itemBuilder: (context, index) {
         return ArticleWidget(
