@@ -1,8 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_draft_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/saved_article_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_news_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/models/article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
@@ -18,12 +20,14 @@ class ArticleRepositoryImpl implements ArticleRepository {
     required ArticleAuthRemoteDataSource authRemoteDataSource,
     required ArticleDraftLocalDataSource articleDraftLocalDataSource,
     required ArticleFirestoreRemoteDataSource firestoreRemoteDataSource,
+    required ArticleNewsRemoteDataSource newsRemoteDataSource,
     required SavedArticleLocalDataSource savedArticleLocalDataSource,
     required ArticleStorageRemoteDataSource storageRemoteDataSource,
     required ArticleThumbnailPickerDataSource thumbnailPickerDataSource,
   })  : _authRemoteDataSource = authRemoteDataSource,
         _articleDraftLocalDataSource = articleDraftLocalDataSource,
         _firestoreRemoteDataSource = firestoreRemoteDataSource,
+        _newsRemoteDataSource = newsRemoteDataSource,
         _savedArticleLocalDataSource = savedArticleLocalDataSource,
         _storageRemoteDataSource = storageRemoteDataSource,
         _thumbnailPickerDataSource = thumbnailPickerDataSource;
@@ -31,6 +35,7 @@ class ArticleRepositoryImpl implements ArticleRepository {
   final ArticleAuthRemoteDataSource _authRemoteDataSource;
   final ArticleDraftLocalDataSource _articleDraftLocalDataSource;
   final ArticleFirestoreRemoteDataSource _firestoreRemoteDataSource;
+  final ArticleNewsRemoteDataSource _newsRemoteDataSource;
   final SavedArticleLocalDataSource _savedArticleLocalDataSource;
   final ArticleStorageRemoteDataSource _storageRemoteDataSource;
   final ArticleThumbnailPickerDataSource _thumbnailPickerDataSource;
@@ -42,10 +47,43 @@ class ArticleRepositoryImpl implements ArticleRepository {
 
   @override
   Future<List<ArticleEntity>> getArticles() async {
-    final articleDocuments =
-        await _firestoreRemoteDataSource.getPublishedArticles();
+    Object? firestoreError;
+    Object? newsApiError;
+    List<ArticleEntity> firestoreArticles = const [];
+    List<ArticleEntity> newsApiArticles = const [];
 
-    return _mapArticles(articleDocuments);
+    try {
+      final articleDocuments =
+          await _firestoreRemoteDataSource.getPublishedArticles();
+      firestoreArticles = await _mapArticles(articleDocuments);
+    } catch (error) {
+      firestoreError = error;
+    }
+
+    try {
+      newsApiArticles = await _getNewsApiArticles();
+    } catch (error) {
+      newsApiError = error;
+    }
+
+    final mergedArticles = _mergeArticles(
+      firestoreArticles: firestoreArticles,
+      newsApiArticles: newsApiArticles,
+    );
+
+    if (mergedArticles.isNotEmpty) {
+      return mergedArticles;
+    }
+
+    if (firestoreError != null) {
+      throw firestoreError;
+    }
+
+    if (newsApiError != null) {
+      throw newsApiError;
+    }
+
+    return const [];
   }
 
   @override
@@ -59,14 +97,20 @@ class ArticleRepositoryImpl implements ArticleRepository {
 
   @override
   Future<ArticleEntity?> getArticleById(String articleId) async {
+    if (_newsRemoteDataSource.isNewsApiArticleId(articleId)) {
+      final newsArticle = await _newsRemoteDataSource.getArticleById(articleId);
+      return newsArticle?.toEntity();
+    }
+
     final articleDocument =
         await _firestoreRemoteDataSource.getArticleById(articleId);
 
-    if (articleDocument == null) {
-      return null;
+    if (articleDocument != null) {
+      return _mapArticle(articleDocument);
     }
 
-    return _mapArticle(articleDocument);
+    final newsArticle = await _newsRemoteDataSource.getArticleById(articleId);
+    return newsArticle?.toEntity();
   }
 
   @override
@@ -197,8 +241,20 @@ class ArticleRepositoryImpl implements ArticleRepository {
 
   @override
   Future<DataState<List<ArticleEntity>>> getNewsArticles() async {
-    final articles = await getArticles();
-    return DataSuccess<List<ArticleEntity>>(articles);
+    try {
+      final articles = await _getNewsApiArticles();
+      return DataSuccess<List<ArticleEntity>>(articles);
+    } on DioError catch (error) {
+      return DataFailed<List<ArticleEntity>>(error);
+    } catch (error) {
+      return DataFailed<List<ArticleEntity>>(
+        DioError(
+          requestOptions: RequestOptions(path: '/top-headlines'),
+          error: error,
+          type: DioErrorType.other,
+        ),
+      );
+    }
   }
 
   @override
@@ -258,6 +314,35 @@ class ArticleRepositoryImpl implements ArticleRepository {
     return articleModel.toEntity();
   }
 
+  Future<List<ArticleEntity>> _getNewsApiArticles() async {
+    final newsArticles = await _newsRemoteDataSource.getTopHeadlines();
+    return newsArticles.map((article) => article.toEntity()).toList();
+  }
+
+  List<ArticleEntity> _mergeArticles({
+    required List<ArticleEntity> firestoreArticles,
+    required List<ArticleEntity> newsApiArticles,
+  }) {
+    final mergedArticles = <ArticleEntity>[];
+    final seenKeys = <String>{};
+
+    void addUniqueArticles(Iterable<ArticleEntity> articles) {
+      for (final article in articles) {
+        final mergeKey = _buildMergeKey(article);
+        if (seenKeys.add(mergeKey)) {
+          mergedArticles.add(article);
+        }
+      }
+    }
+
+    // Keep authored Firestore articles first and append external headlines
+    // without duplicating stories that point to the same source URL.
+    addUniqueArticles(firestoreArticles);
+    addUniqueArticles(newsApiArticles);
+
+    return mergedArticles;
+  }
+
   Future<String?> _resolveThumbnailUrl(String? thumbnailPath) async {
     if (thumbnailPath == null || thumbnailPath.isEmpty) {
       return kDefaultImage;
@@ -301,6 +386,20 @@ class ArticleRepositoryImpl implements ArticleRepository {
     }
 
     return DateTime.now().toIso8601String().split('T').first;
+  }
+
+  String _buildMergeKey(ArticleEntity article) {
+    final normalizedUrl = article.url?.trim();
+    if (normalizedUrl != null && normalizedUrl.isNotEmpty) {
+      return 'url:$normalizedUrl';
+    }
+
+    final normalizedId = article.id?.trim();
+    if (normalizedId != null && normalizedId.isNotEmpty) {
+      return 'id:$normalizedId';
+    }
+
+    return 'title:${article.title ?? ''}|date:${article.publishedAt ?? ''}';
   }
 
   String _buildThumbnailPath(

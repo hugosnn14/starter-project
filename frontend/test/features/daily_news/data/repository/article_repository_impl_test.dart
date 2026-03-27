@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_news_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_draft_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/article_thumbnail_picker_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/saved_article_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/models/article.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/models/article_thumbnail.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/entities/article.dart';
@@ -14,21 +16,87 @@ import 'package:news_app_clean_architecture/features/daily_news/domain/entities/
 void main() {
   late ArticleRepositoryImpl repository;
   late _FakeArticleFirestoreRemoteDataSource firestoreRemoteDataSource;
+  late _FakeArticleNewsRemoteDataSource newsRemoteDataSource;
   late _FakeSavedArticleLocalDataSource savedArticleLocalDataSource;
   late _FakeArticleStorageRemoteDataSource storageRemoteDataSource;
 
   setUp(() {
     firestoreRemoteDataSource = _FakeArticleFirestoreRemoteDataSource();
+    newsRemoteDataSource = _FakeArticleNewsRemoteDataSource();
     savedArticleLocalDataSource = _FakeSavedArticleLocalDataSource();
     storageRemoteDataSource = _FakeArticleStorageRemoteDataSource();
     repository = ArticleRepositoryImpl(
       authRemoteDataSource: _FakeArticleAuthRemoteDataSource(),
       articleDraftLocalDataSource: _FakeArticleDraftLocalDataSource(),
       firestoreRemoteDataSource: firestoreRemoteDataSource,
+      newsRemoteDataSource: newsRemoteDataSource,
       savedArticleLocalDataSource: savedArticleLocalDataSource,
       storageRemoteDataSource: storageRemoteDataSource,
       thumbnailPickerDataSource: _FakeArticleThumbnailPickerDataSource(),
     );
+  });
+
+  group('getArticles', () {
+    test('merges Firestore articles with NewsAPI headlines', () async {
+      firestoreRemoteDataSource.publishedArticles = [
+        _articleDocument(articleId: 'article-1'),
+      ];
+      newsRemoteDataSource.topHeadlines = const [
+        ArticleModel(
+          id: 'newsapi:headline-1',
+          author: 'NewsAPI',
+          title: 'External headline',
+          description: 'Breaking update',
+          url: 'https://example.com/external-headline',
+          urlToImage: 'https://example.com/external-headline.png',
+          publishedAt: '2026-03-26',
+          content: 'External content',
+          status: 'published',
+        ),
+      ];
+
+      final articles = await repository.getArticles();
+
+      expect(articles, hasLength(2));
+      expect(articles.first.id, 'article-1');
+      expect(articles.last.id, 'newsapi:headline-1');
+    });
+
+    test('returns NewsAPI headlines when Firestore loading fails', () async {
+      firestoreRemoteDataSource.shouldThrowOnGetPublishedArticles = true;
+      newsRemoteDataSource.topHeadlines = const [
+        ArticleModel(
+          id: 'newsapi:headline-2',
+          title: 'Recovered from NewsAPI',
+          url: 'https://example.com/recovered-headline',
+          publishedAt: '2026-03-26',
+          status: 'published',
+        ),
+      ];
+
+      final articles = await repository.getArticles();
+
+      expect(articles, hasLength(1));
+      expect(articles.single.title, 'Recovered from NewsAPI');
+    });
+  });
+
+  test('getArticleById resolves NewsAPI articles through the news source',
+      () async {
+    newsRemoteDataSource.topHeadlines = const [
+      ArticleModel(
+        id: 'newsapi:headline-3',
+        title: 'Lookup by synthetic id',
+        url: 'https://example.com/headline-lookup',
+        publishedAt: '2026-03-26',
+        status: 'published',
+      ),
+    ];
+
+    final article = await repository.getArticleById('newsapi:headline-3');
+
+    expect(article, isNotNull);
+    expect(article?.title, 'Lookup by synthetic id');
   });
 
   group('updateArticle', () {
@@ -185,9 +253,11 @@ class _FakeArticleDraftLocalDataSource implements ArticleDraftLocalDataSource {
 class _FakeArticleFirestoreRemoteDataSource
     implements ArticleFirestoreRemoteDataSource {
   Map<String, dynamic>? articleById;
+  List<Map<String, dynamic>> publishedArticles = [];
   String? lastUpdatedThumbnailPath;
   final List<String> archivedArticleIds = [];
   final List<String> deletedArticleIds = [];
+  bool shouldThrowOnGetPublishedArticles = false;
 
   @override
   Future<void> archiveArticle(String articleId) async {
@@ -228,7 +298,11 @@ class _FakeArticleFirestoreRemoteDataSource
 
   @override
   Future<List<Map<String, dynamic>>> getPublishedArticles() async {
-    return const [];
+    if (shouldThrowOnGetPublishedArticles) {
+      throw StateError('getPublishedArticles failed');
+    }
+
+    return publishedArticles;
   }
 
   @override
@@ -285,6 +359,31 @@ class _FakeArticleStorageRemoteDataSource
     required ArticleThumbnailEntity thumbnail,
   }) async {
     uploadCalls.add((thumbnailPath, thumbnail));
+  }
+}
+
+class _FakeArticleNewsRemoteDataSource implements ArticleNewsRemoteDataSource {
+  List<ArticleModel> topHeadlines = const [];
+
+  @override
+  Future<ArticleModel?> getArticleById(String articleId) async {
+    for (final article in topHeadlines) {
+      if (article.id == articleId) {
+        return article;
+      }
+    }
+
+    return null;
+  }
+
+  @override
+  Future<List<ArticleModel>> getTopHeadlines() async {
+    return topHeadlines;
+  }
+
+  @override
+  bool isNewsApiArticleId(String articleId) {
+    return articleId.startsWith('newsapi:');
   }
 }
 

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/DAO/article_dao.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/DAO/article_draft_dao.dart';
@@ -7,7 +8,9 @@ import 'package:news_app_clean_architecture/features/daily_news/data/data_source
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/local/saved_article_local_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_auth_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_firestore_remote_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_news_remote_data_source.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/article_storage_remote_data_source.dart';
+import 'package:news_app_clean_architecture/features/daily_news/data/data_sources/remote/news_api_service.dart';
 import 'package:news_app_clean_architecture/features/daily_news/data/repository/article_repository_impl.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/repository/article_repository.dart';
 import 'package:news_app_clean_architecture/features/daily_news/domain/usecases/archive_article.dart';
@@ -53,8 +56,15 @@ Future<void> initializeDependencies() async {
   sl.registerLazySingleton<ArticleAuthRemoteDataSource>(
     () => ArticleAuthRemoteDataSourceImpl(),
   );
+  sl.registerLazySingleton<Dio>(() => Dio());
+  sl.registerLazySingleton<NewsApiService>(
+    () => NewsApiService(sl<Dio>()),
+  );
   sl.registerLazySingleton<ArticleFirestoreRemoteDataSource>(
     () => ArticleFirestoreRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<ArticleNewsRemoteDataSource>(
+    () => ArticleNewsRemoteDataSourceImpl(newsApiService: sl()),
   );
   sl.registerLazySingleton<ArticleStorageRemoteDataSource>(
     () => ArticleStorageRemoteDataSourceImpl(),
@@ -64,6 +74,7 @@ Future<void> initializeDependencies() async {
       authRemoteDataSource: sl(),
       articleDraftLocalDataSource: sl(),
       firestoreRemoteDataSource: sl(),
+      newsRemoteDataSource: sl(),
       savedArticleLocalDataSource: sl(),
       storageRemoteDataSource: sl(),
       thumbnailPickerDataSource: sl(),
