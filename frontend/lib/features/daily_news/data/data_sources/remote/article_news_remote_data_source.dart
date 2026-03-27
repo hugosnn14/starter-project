@@ -25,6 +25,10 @@ class ArticleNewsRemoteDataSourceImpl implements ArticleNewsRemoteDataSource {
 
   @override
   Future<List<ArticleModel>> getTopHeadlines() async {
+    if (newsAPIKey.trim().isEmpty) {
+      return const [];
+    }
+
     final response = await _newsApiService.getNewsArticles(
       apiKey: newsAPIKey,
       country: countryQuery,

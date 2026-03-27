@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../constants/constants.dart';
 import '../../firebase_options.dart';
 
 Future<void> bootstrapFirebaseForAndroidApp() async {
@@ -12,6 +13,10 @@ Future<void> bootstrapFirebaseForAndroidApp() async {
 }
 
 Future<void> _warmAnonymousSessionIfAvailable(FirebaseAuth auth) async {
+  if (!enableAnonymousAuth) {
+    return;
+  }
+
   if (auth.currentUser != null) {
     return;
   }

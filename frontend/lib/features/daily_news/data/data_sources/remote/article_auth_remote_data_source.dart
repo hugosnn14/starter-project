@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../../../core/constants/constants.dart';
+
 abstract class ArticleAuthRemoteDataSource {
   Future<String> getCurrentUserId();
 }
@@ -16,6 +18,15 @@ class ArticleAuthRemoteDataSourceImpl implements ArticleAuthRemoteDataSource {
     final currentUser = _firebaseAuth.currentUser;
 
     if (currentUser == null) {
+      if (!enableAnonymousAuth) {
+        throw StateError(
+          'La compilacion publica no habilita autenticacion anonima. '
+          'Usa un usuario Firebase ya autenticado o ejecuta la app con '
+          '--dart-define=ENABLE_ANONYMOUS_AUTH=true en un proyecto Firebase '
+          'controlado por ti.',
+        );
+      }
+
       try {
         final credential = await _firebaseAuth.signInAnonymously();
         final anonymousUser = credential.user;
