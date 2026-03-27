@@ -1,265 +1,154 @@
 # Reporte de desarrollo
 
-## Introduccion
-
-Este reporte resume el trabajo realizado sobre la base del proyecto `news_app_clean_architecture` para convertirlo en un MVP funcional centrado en publicacion y consulta de articulos propios. El foco principal de esta iteracion ha sido cerrar el flujo real de articulos sobre Firebase, mantener la estructura de Clean Architecture ya definida por el repositorio y dejar documentadas las decisiones tecnicas que condicionan el estado actual del sistema.
-
-## Alcance
-
-### Alcance completado
-
-- Backend sobre Firebase preparado con:
-  - esquema de datos en `backend/docs/DB_SCHEMA.md`
-  - reglas de Firestore en `backend/firestore.rules`
-  - reglas de Storage en `backend/storage.rules`
-  - indices compuestos en `backend/firestore.indexes.json`
-- Frontend Android conectado a Firebase con:
-  - `Firebase.initializeApp(...)`
-  - `google-services.json`
-  - `firebase_options.dart`
-  - bootstrap tolerante si el acceso anonimo no esta habilitado
-- Flujo activo del MVP:
-  - cargar articulos publicados desde Cloud Firestore
-  - abrir detalle por `articleId`
-  - crear articulo desde editor propio
-  - seleccionar miniatura con `image_picker`
-  - subir miniatura a Firebase Storage
-  - publicar metadatos del articulo en Cloud Firestore
-  - refrescar el feed tras publicar
-- Estado de aplicacion y navegacion organizados con `flutter_bloc`
-- Inyeccion de dependencias productiva simplificada con `GetIt`
-- Documentacion operativa actualizada en `frontend/README.md`
-
-### Fuera de alcance actual
-
-- Flujo de autenticacion con UI propia
-- Soporte oficial para Firebase Emulator Suite desde la app
-- Persistencia de `Saved Articles` entre reinicios
-- Soporte productivo para iOS, web o desktop
-
-### Estado funcional actual
-
-- El feed principal consume articulos publicados desde Firestore.
-- La publicacion crea articulo remoto y sube miniatura a Storage.
-- El detalle funciona con identificador remoto real.
-- `Saved Articles` funciona en memoria durante la sesion actual.
-
-## Decisiones tomadas
-
-| Decision | Motivo | Impacto |
-|---|---|---|
-| Mantener Clean Architecture (`presentation`, `domain`, `data`) | El repo ya impone esta estructura y permite aislar UI, reglas de negocio y acceso a datos | La integracion con Firebase no rompe la arquitectura existente |
-| Usar el `document id` de Firestore como identificador canonico del articulo | Evita duplicar IDs y alinea Firestore, Storage y navegacion | El detalle, la subida de miniatura y las reglas se apoyan en el mismo `articleId` |
-| Guardar `thumbnailPath` en vez de persistir una URL publica | La consigna pedia usar Storage y es mas robusto almacenar la referencia estable | La URL se resuelve en runtime y las reglas de Storage quedan mas claras |
-| Extender el shape heredado de News API en vez de reemplazarlo por completo | Reducir refactor en la UI y reutilizar `ArticleEntity` | La presentacion sigue consumiendo un modelo cercano al existente |
-| Publicar primero el documento y despues subir la miniatura | Era necesario conocer el `articleId` antes de construir la ruta `media/articles/{articleId}/thumbnail.ext` | El flujo queda ordenado y compatible con las reglas remotas |
-| Hacer rollback del documento si falla la subida de la miniatura | Evitar articulos huerfanos sin imagen asociada en Firebase | El estado remoto queda mas consistente ante errores parciales |
-| Calentar sesion anonima en el bootstrap cuando esta disponible | El MVP necesita autor autenticado para publicar, pero no se implemento una pantalla de login | La app puede arrancar y publicar sin UX adicional cuando Anonymous Auth esta habilitado |
-| Degradar con error explicito si Anonymous Auth no esta permitido | Evitar fallos opacos en publicacion | El usuario recibe una causa concreta y la app sigue pudiendo leer |
-| Limitar el DI de produccion al flujo activo del MVP | Habia wiring legado y fixtures de test que no debian mezclarse con la app real | Menos ruido, menos dependencias inactivas y rutas mas honestas |
-| Mantener `Saved Articles` en memoria en esta iteracion | El objetivo principal era cerrar el flujo remoto de publicacion y lectura | La funcionalidad existe, pero no persiste al cerrar la app |
-
-## Tecnologias
-
-| Tecnologia | Uso principal en el proyecto |
-|---|---|
-| Flutter | Framework principal de la app |
-| Dart | Lenguaje de la capa de dominio, presentacion y datos |
-| `flutter_bloc` | Gestion de estado y coordinacion de pantallas |
-| `get_it` | Inyeccion de dependencias |
-| Firebase Core | Bootstrap de la app contra el proyecto Firebase |
-| Firebase Auth | Identidad del autor para publicar articulos |
-| Cloud Firestore | Persistencia de articulos publicados |
-| Firebase Storage | Almacenamiento de miniaturas |
-| `image_picker` | Seleccion de imagen para portada del articulo |
-| `equatable` | Comparacion de estados y entidades |
-| `intl` | Formateo y utilidades de fecha ya presentes en el proyecto |
-| Android Gradle Plugin `8.11.1` | Toolchain Android actual del proyecto |
-| Kotlin `2.2.20` | Toolchain Android actual del proyecto |
-| JDK 17 | Version requerida para compilar el frontend Android |
-| Android NDK `27.0.12077973` | Version fijada para evitar incidencias de compilacion |
-
-### Tecnologias presentes en el repo pero no centrales en el flujo productivo actual
-
-- `floor`
-- `retrofit`
-- `cached_network_image`
-
-Estas dependencias siguen existiendo por herencia del proyecto y por posibles piezas legacy o de soporte, pero el flujo productivo documentado ahora mismo esta centrado en Firebase.
-
-## Arquitectura
-
-La arquitectura actual mantiene la separacion por capas y acota la produccion al flujo de articulos. `presentation` contiene pantallas, widgets y `Bloc`; `domain` define entidades, contratos y casos de uso; `data` implementa el acceso real a Firebase y encapsula la seleccion local de miniaturas.
-
-En paralelo, el backend del repositorio actua como contrato del sistema remoto: schema, indices y reglas. Eso permite que el frontend y Firebase no queden acoplados solo por convencion, sino tambien por documentacion y validacion explicita.
-
-### Arquitectura del repositorio
-
-```mermaid
-flowchart TD
-    A[starter-project]
-    A --> B[frontend]
-    A --> C[backend]
-    A --> D[docs]
-
-    B --> B1[android]
-    B --> B2[lib]
-    B --> B3[test]
-
-    B2 --> B21[config]
-    B2 --> B22[core]
-    B2 --> B23[features/daily_news]
-
-    B23 --> B231[presentation]
-    B23 --> B232[domain]
-    B23 --> B233[data]
-
-    C --> C1[docs/DB_SCHEMA.md]
-    C --> C2[firestore.rules]
-    C --> C3[storage.rules]
-    C --> C4[firestore.indexes.json]
-```
-
-### Arquitectura logica del flujo activo
-
-```mermaid
-flowchart LR
-    UI[Presentation<br/>Pages + Widgets + Bloc]
-    Domain[Domain<br/>Entities + Use Cases + Repository contracts]
-    Data[Data<br/>Repository impl + Data sources + Models]
-    Auth[Firebase Auth]
-    Firestore[Cloud Firestore]
-    Storage[Firebase Storage]
-    Rules[Schema + Rules + Indexes]
-
-    UI --> Domain
-    Data --> Domain
-    Data --> Auth
-    Data --> Firestore
-    Data --> Storage
-    Rules -. valida .-> Firestore
-    Rules -. valida .-> Storage
-```
+## 1. Introduccion
 
-### Flujo de publicacion
+Cuando empece esta prueba vi un proyecto con buena base tecnica, pero tambien con bastante codigo heredado y algunas piezas que ya no representaban el flujo real de la aplicacion. Mi objetivo fue convertir esa base en un MVP funcional, coherente y facil de explicar.
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Editor as CreateArticleEditorPage
-    participant Bloc as CreateArticleBloc
-    participant UC as CreateArticleUseCase
-    participant Repo as ArticleRepositoryImpl
-    participant Auth as ArticleAuthRemoteDataSource
-    participant FS as ArticleFirestoreRemoteDataSource
-    participant ST as ArticleStorageRemoteDataSource
-    participant Feed as ArticlesBloc
+Aunque ya tenia experiencia con Flutter y arquitectura por capas, esta prueba me obligo a cerrar un flujo completo con Firebase Auth, Firestore, Storage, reglas de seguridad y una capa de datos que ademas debia convivir con la integracion previa de `NewsAPI`. El foco estuvo en terminar el recorrido de extremo a extremo sin romper la estructura del repositorio.
 
-    User->>Editor: Completa formulario y pulsa Publish
-    Editor->>Bloc: SubmitCreateArticle
-    Bloc->>UC: call(params)
-    UC->>Repo: createArticle(...)
-    Repo->>Auth: getCurrentUserId()
-    Auth-->>Repo: uid
-    Repo->>FS: createArticle(articleId, metadata)
-    FS-->>Repo: ok
-    Repo->>ST: uploadThumbnail(thumbnailPath, file)
+## 2. Aprendizaje
 
-    alt subida correcta
-        ST-->>Repo: ok
-        Repo->>FS: getArticleById(articleId)
-        FS-->>Repo: documento normalizado
-        Repo-->>UC: ArticleEntity
-        UC-->>Bloc: success
-        Bloc->>Feed: LoadArticles
-    else subida fallida
-        ST-->>Repo: error
-        Repo->>FS: deleteArticle(articleId)
-        Repo-->>UC: error
-        UC-->>Bloc: failure
-    end
-```
+Durante la prueba reforce varios puntos practicos:
 
-## Problemas durante el desarrollo
+- modelado de articulos en Firestore sin romper la interfaz heredada
+- coordinacion entre Firestore, Storage y Auth para publicar articulos
+- arranque correcto de Flutter cuando Firebase debe inicializarse antes del resto
+- convivencia entre una fuente propia de datos y una fuente externa como `NewsAPI`
+- documentacion del contrato entre backend y frontend
+- uso responsable de herramientas de IA como acelerador, sin delegar el criterio tecnico
 
-### 1. Configuracion del emulador Android y toolchain
+Los recursos principales fueron la documentacion oficial de Flutter y Firebase, la documentacion interna del repositorio y la propia lectura del codigo existente para distinguir que partes seguian activas y cuales eran ya legado.
 
-El primer problema practico no fue de negocio sino de entorno. Para ejecutar el frontend Android de forma estable hubo que alinear varias piezas a la vez:
+## 3. Metodologia de trabajo y uso de IA
 
-- JDK 17
-- Android Gradle Plugin `8.11.1`
-- Kotlin `2.2.20`
-- Android NDK `27.0.12077973`
+Durante el desarrollo me apoye en herramientas de IA para acelerar algunas tareas de ejecucion, sobre todo:
 
-Sin esa alineacion aparecian errores de build o advertencias que hacian el entorno poco fiable. La solucion fue fijar explicitamente la version del NDK y endurecer la configuracion Gradle para que el proyecto arranque siempre sobre un toolchain coherente.
+- generacion inicial de fragmentos de codigo
+- generacion y ajuste de tests
+- redaccion o mejora de parte de la documentacion
+- uso de Google Stitch como apoyo para proponer y mejorar interfaces
 
-### 2. Diferencia entre emulador Android y Firebase Emulator Suite
+Quiero dejar claro que ese apoyo no sustituyo mi criterio tecnico. Todo lo generado fue siempre supervisado por mi, contrastado con mis conocimientos y revisado dentro del contexto real del proyecto.
 
-Otro punto confuso fue que "usar emulador" puede significar dos cosas distintas:
+La metodologia seguida fue siempre la misma:
 
-- correr la app en un dispositivo virtual Android
-- ejecutar servicios locales de Firebase con Emulator Suite
+- Planificar
+- Desarrollar
+- Revisar
+- Testear
+- Iterar
 
-La app actual funciona bien en emulador Android contra un proyecto Firebase real. Sin embargo, no esta cableada todavia para apuntar a Auth, Firestore y Storage locales mediante `useEmulator(...)`. Por eso fue importante documentar esta limitacion de forma explicita para no dar soporte por hecho donde aun no existe.
+En la practica eso significo:
 
-### 3. Bootstrap de Firebase y orden de arranque
+- entender primero el estado real del repositorio antes de tocar piezas importantes
+- decidir el flujo y el contrato de datos antes de implementar
+- desarrollar cambios pequenos y verificables
+- revisar el codigo generado o modificado para asegurar coherencia con la arquitectura
+- testear tanto con pruebas automatizadas como con comprobaciones manuales
+- iterar despues de cada hallazgo hasta dejar la funcionalidad estable
 
-Para que el flujo productivo fuese estable hubo que asegurar este orden:
+La IA me sirvio para ganar velocidad mecanica en algunas partes del trabajo, pero las decisiones, la integracion final, la revision critica y la validacion del resultado fueron responsabilidad mia.
 
-1. `WidgetsFlutterBinding.ensureInitialized()`
-2. `Firebase.initializeApp(...)`
-3. inicializacion del contenedor de dependencias
-4. `runApp(...)`
+## 4. Trabajo realizado
 
-Si Firebase no se inicializa antes del DI y de los `Bloc`, las dependencias remotas quedan en un estado incierto. Separar el bootstrap en `core/firebase/firebase_bootstrap.dart` ayudo a hacer ese arranque mas claro y mantenible.
+### Funcionalidad principal
 
-### 4. Publicacion dependiente de autenticacion
+- Backend preparado con esquema, reglas e indices para articulos en Firebase.
+- Frontend Android conectado a Firebase con inicializacion real del proyecto.
+- Flujo completo de articulos propios:
+  - listado desde Firestore
+  - detalle por `articleId`
+  - creacion de articulo
+  - seleccion de miniatura con `image_picker`
+  - subida a Firebase Storage
+  - guardado de metadatos en Firestore
+  - archivado de articulos
+- Recuperacion de `NewsAPI` como fuente complementaria del listado principal.
 
-El modelo remoto exige `authorId`, asi que publicar sin usuario autenticado no era una opcion. Implementar una UX completa de login quedaba fuera del alcance, por lo que se opto por autenticacion anonima como solucion pragmatica de MVP.
+### Estado actual del listado principal
 
-El problema real fue que Firebase puede tener Anonymous Auth deshabilitado. En ese caso la app debia:
+El listado principal combina dos fuentes:
 
-- seguir leyendo articulos publicados
-- no romper el arranque
-- explicar de forma clara por que la publicacion falla
+- Firestore para los articulos publicados desde la app
+- `NewsAPI` para titulares externos
 
-La solucion fue combinar warm-up de sesion anonima cuando esta permitida con mensajes de error explicitos cuando no lo esta.
+Los articulos propios tienen prioridad en el listado y las noticias externas usan IDs sinteticos `newsapi:*`, lo que permite que el detalle y `Saved Articles` sigan funcionando tambien en ese caso.
 
-### 5. Consistencia entre Firestore y Storage
+## 5. Decisiones tecnicas
 
-El articulo y su miniatura viven en dos sistemas distintos. Eso abre la puerta a inconsistencias parciales:
+Las decisiones mas importantes fueron estas:
 
-- documento creado sin imagen
-- imagen subida sin documento valido
+- Mantener la separacion por capas ya marcada por el proyecto para no mezclar UI, logica y acceso a datos.
+- Usar el `document id` de Firestore como identificador canonico de los articulos propios.
+- Guardar `thumbnailPath` en vez de una URL publica para respetar el requisito de Firebase Storage.
+- Crear primero el documento y subir despues la miniatura, ya que la ruta en Storage depende del `articleId`.
+- Revertir el documento si falla la subida de imagen para evitar articulos huerfanos.
+- Mantener autenticacion anonima como solucion de MVP para publicar sin construir una pantalla completa de login.
+- Recuperar `NewsAPI` como apoyo del listado principal para que la app siga mostrando contenido real aunque haya pocos articulos propios.
 
-Se resolvio creando primero el documento con un `thumbnailPath` determinista y haciendo rollback si la subida de la miniatura falla. No es una transaccion distribuida completa, pero para el alcance del MVP reduce mucho la suciedad remota.
+## 6. Retos encontrados
 
-### 6. Separar codigo activo de wiring legado
+El primer reto fue el entorno Android. Antes de estabilizar el flujo funcional hubo que alinear JDK, Gradle, Kotlin y NDK para que la build fuera fiable.
 
-El repositorio heredaba piezas de fases anteriores y utilidades de test. Mantener todo eso mezclado en la configuracion productiva hacia mas dificil entender que parte de la app era realmente la vigente. Por eso se redujo el contenedor de dependencias y la tabla de rutas al flujo real del MVP: feed, detalle, creacion y guardados.
+Ese punto fue mas costoso de lo que parece en una prueba de este tipo, porque una parte del tiempo no estuvo en la funcionalidad sino en dejar el entorno consistente. Hubo que lidiar con:
 
-## Verificacion actual
+- compatibilidad entre la version de Flutter y las versiones efectivas de Dart usadas por el proyecto
+- alineacion entre JDK 17, Gradle y plugins Android para evitar fallos de compilacion
+- necesidad de tener disponible la NDK correcta para que la build de Android no quedara en un estado inestable
+- diferencias entre ejecutar la app en un dispositivo o emulador Android y ejecutar servicios locales de Firebase
+- tiempos perdidos en validaciones del emulador, arranque del dispositivo virtual y ajustes del toolchain antes de poder probar con normalidad
 
-En el estado actual de la rama:
+En otras palabras, no fue solo "hacer correr Flutter", sino dejar cuadradas varias capas de versionado que, si no estan alineadas, bloquean la iteracion incluso cuando el codigo de aplicacion es correcto.
 
-- `flutter analyze` pasa correctamente
-- la bateria de tests del flujo `daily_news` pasa correctamente
+Otro reto importante fue diferenciar entre ejecutar la app en un emulador Android y soportar Firebase Emulator Suite. La app quedo funcionando contra un proyecto Firebase real, pero no se dejo como soporte oficial el uso de `useEmulator(...)` para Auth, Firestore y Storage.
 
-Ademas, el `frontend/README.md` deja documentado un smoke test manual para validar:
+Ese matiz fue importante porque al principio "emulador" podia referirse a dos cosas distintas:
 
-- carga del feed
-- detalle de articulo
-- guardado y borrado en sesion
-- creacion y publicacion
-- comportamiento cuando Anonymous Auth no esta habilitado
+- el emulador de Android donde corre la app
+- los emuladores de Firebase para Auth, Firestore y Storage
 
-## Limites conocidos y siguientes pasos
+Resolver la primera parte era necesario para desarrollar y probar en Android. La segunda ya implicaba una integracion adicional a nivel de bootstrap y configuracion de red que no estaba cerrada en el proyecto base, asi que la decision correcta para el MVP fue estabilizar primero la app contra Firebase real y dejar el soporte explicito para Firebase Emulator Suite como mejora posterior.
 
-- Anadir soporte explicito para Firebase Emulator Suite desde el bootstrap.
-- Persistir `Saved Articles` en almacenamiento local real si se quiere conservar entre reinicios.
-- Incorporar autenticacion con UI propia si el producto deja de apoyarse en acceso anonimo.
-- Extender el soporte productivo mas alla de Android cuando la configuracion Firebase multiplataforma este completa.
+Tambien hubo un reto claro de consistencia entre Firestore y Storage. Como el articulo y la miniatura viven en sistemas distintos, habia que evitar estados parciales. La solucion fue publicar en dos pasos y borrar el documento si la subida de la imagen falla.
 
-## Conclusion
+Por ultimo, reactivar `NewsAPI` sin romper el MVP exigio unificar ambas fuentes de datos con una logica clara de combinacion, IDs estables y resolucion de detalle para noticias externas.
 
-El resultado de esta iteracion es un MVP mucho mas honesto y mas cercano a produccion que el punto de partida: ya no se trata solo de pintar una UI, sino de un flujo funcional de lectura y publicacion de articulos respaldado por Firebase, con reglas remotas, arquitectura mantenida, documentacion actualizada y limites tecnicos explicitados.
+## 7. Reflexion y siguientes pasos
+
+La leccion principal fue que cerrar una funcionalidad no consiste solo en hacer que la pantalla pinte datos. Hacia falta dejar un contrato remoto claro, una capa de datos honesta, un arranque fiable y una documentacion alineada con el estado real del proyecto.
+
+Tambien me resulto util no pelearme con el modelo heredado cuando no era necesario. Reaprovechar parte de la estructura previa de `NewsAPI` permitio iterar mas rapido y reducir refactor innecesario.
+
+Si tuviera mas tiempo, los siguientes pasos naturales serian:
+
+- anadir soporte explicito para Firebase Emulator Suite
+- persistir `Saved Articles` entre reinicios
+- incorporar una UI real de autenticacion
+- distinguir visualmente articulos propios y noticias externas
+- ampliar pruebas de integracion para el listado hibrido
+
+## 8. Prueba del proyecto
+
+La verificacion tecnica que deje cerrada en esta rama fue:
+
+- `flutter analyze`
+- `flutter test test/features/daily_news/data/repository/article_repository_impl_test.dart`
+
+Ademas, `frontend/README.md` incluye una guia de prueba manual del flujo principal.
+
+En cuanto a evidencia visual, el repositorio no incluye capturas ni videos versionados. Para una entrega final adjuntaria, como minimo, la pantalla principal, el detalle de un articulo propio, el detalle de una noticia externa y el flujo de creacion y publicacion.
+
+## 9. Extras implementados
+
+Como trabajo adicional sobre el minimo esperado, destacaria:
+
+- listado hibrido Firestore + `NewsAPI`
+- archivado de articulos en lugar de borrado duro en el flujo publico
+- reversion del documento si falla la subida de la miniatura
+- activacion anticipada de sesion anonima y mensajes de error claros cuando no esta disponible
+
+Tambien dejo como artefactos utiles el esquema en `backend/docs/DB_SCHEMA.md` y la documentacion operativa en `frontend/README.md` y `backend/README.md`.
+
+## 10. Cierre
+
+El resultado final ya no es solo una interfaz conectada a datos de prueba. Es una app Android con lectura, detalle, guardado en sesion, creacion, publicacion y archivado de articulos, respaldada por Firebase y capaz de combinar contenido propio con titulares externos reales de forma consistente.
