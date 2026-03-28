@@ -1,12 +1,13 @@
 name: news_app_clean_architecture
-description: A new Flutter project.
+description: Daily News Flutter app with Firebase-backed editorial flow.
 
 publish_to: "none"
 
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.0"
 
 dependencies:
   flutter:

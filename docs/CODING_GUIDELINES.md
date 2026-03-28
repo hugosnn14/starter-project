@@ -19,7 +19,7 @@ If we find a way to refactor old code when creating new features, we refactor th
 This is a requirement of our jobs as software engineers in Symmetry. It is not an individual task or something you do every 'x' amount of time, it is something you do in each and every change to the codebase.  
 2. Use Meaningful names  
     - 2.1 Follow Set Conventions
-    Follow the already set convention for naming in "typical" files (eg: use_cases, repositoryImpls, Entities, ...). This "typical" files MUST follow the same conventions and the classes inside them as well.
+    Follow the already set convention for naming in "typical" files (eg: usecases, repositoryImpls, Entities, ...). These "typical" files MUST follow the same conventions and the classes inside them as well.
     - 2.1 Use Intention-Revealing Names  
     Use names that reveal the intention of variables, classes, or functions.  
     - 2.2 Avoid Disinformation  

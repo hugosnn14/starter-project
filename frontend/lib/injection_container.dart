@@ -36,7 +36,7 @@ final sl = GetIt.instance;
 Future<void> initializeDependencies() async {
   final appDatabase = await $FloorAppDatabase
       .databaseBuilder('app_database.db')
-      .addMigrations([migration1To2]).build();
+      .addMigrations([migration1To2, migration2To3]).build();
   sl.registerSingleton<AppDatabase>(appDatabase);
   sl.registerLazySingleton<ArticleDao>(
     () => sl<AppDatabase>().articleDAO,

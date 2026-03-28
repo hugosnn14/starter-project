@@ -1,34 +1,20 @@
-# Symmetry's App Architecture
-Symmetry follows an adaptation of Clean Architecture, largely inspired on [this tutorial](https://www.youtube.com/watch?v=7V_P6dovixg).
+# App Architecture
+This repository follows an adaptation of Clean Architecture, largely inspired by [this tutorial](https://www.youtube.com/watch?v=7V_P6dovixg).
 Clean Architecture separates the software into layers with defined responsibilities.
-More specifically, we divide the software in 3 layers: presentation, business logic, and data
-layers. Each of these layers cover a specific functionality and have a specific set of
-requirements, as explained [below](#clean-folders). 
+In this project we work with 3 main layers: presentation, business logic, and data.
+Each layer covers a specific responsibility and follows the constraints described [below](#clean-folders).
 
 
 ## Folder Structure of the App
 - lib
-  - config 
+  - config
     - routes
     - theme
   - core
     - constants
+    - firebase
     - resources
     - usecase
-  - shared
-    - {feature}
-      - data
-        - data_sources
-        - models
-        - repository
-      - domain
-        - entities
-        - repository
-        - use_cases
-      - presentation
-        - bloc
-        - screens
-        - widgets
   - features
     - {feature}
       - data
@@ -37,22 +23,23 @@ requirements, as explained [below](#clean-folders).
         - repository
       - domain
         - entities
-        - use_cases
         - repository
+        - usecases
       - presentation
         - bloc
-        - screens
+        - pages
         - widgets
 
-Furthermore, the **`test` folder directly mirrors the structure of the `lib` folder** with a {fileName}_test.dart extension on each file for each test.
+The current codebase mainly uses `core/` plus `features/`; a `shared/` module is allowed by the guideline but is not part of the active implementation today.
+
+The **`test` folder follows the active feature structure**, focusing on repositories, data sources, blocs and use cases that matter for the current product flow. It is not a strict one-to-one mirror of every file in `lib/`.
 
 ## Clean Folders
-All the functionality of our app will follow a clean structure, and when used, the 3 layers
-together form a *clean folder* and they satisfy a set of very restrictive
-conditions. The violations to this restrictions are technically explained [here](./ARCHITECTURE_VIOLATIONS.md)
+All the functionality of the app should follow a clean structure, and when used, the 3 layers
+together form a *clean folder* that satisfies a restrictive set of rules.
+The violations to these restrictions are detailed [here](./ARCHITECTURE_VIOLATIONS.md).
 ### Clean Folder Requirements
-1. A clean folder must follow a clean structure which is divided into 3 layers (represented as
-folders in the database)
+1. A clean folder must follow a clean structure divided into 3 layers (represented as folders in the codebase)
 A. Data Layer
 B. Domain Layer (Business Logic)
 C. Presentation Layer (UI)
@@ -84,25 +71,25 @@ This is ALWAYS THE CASE, no exceptions
      - Define business objects used across the app for both data submission to APIs and data presentation in the UI.
      - Focused on implementing business logic without concerning data parsing (handled by Models) or UI presentation (handled by the Presentation Layer). Example: Age restrictions for users.
   2. **Params**
-    - classes that represent the parameters of the use_cases - eg: SignInParams(String email, String password).
+    - Optional classes that represent the parameters of the use cases, for example `SignInParams(String email, String password)`.
   3. **Use Cases**:
      - A piece of Business Logic that represents a single task the system needs to perform
      - Implements an abstract class with a `call` method, utilizing Repository Interfaces to execute specific functions. Examples include signup, login, upload_video, mark_read.
   4. **Repository Interfaces**:
      - Abstract classes that outline the necessary properties and methods for the application's features.
-     - Imported by the use_cases (which are used in presentation) but implemented by the Data Layer, ensuring decoupling of business logic from specific APIs or UI design choices.
+     - Imported by the use cases used in presentation, but implemented by the Data Layer, ensuring decoupling of business logic from specific APIs or UI design choices.
 
 
 ##### Presentation Layer
 - **Dependencies**: Only interacts with the Business Layer, specifically with use cases.
 - **Structure**: Organized into three folders:
-  1. **Screens**
-    - Contain the screens of the respective feature
+  1. **Pages**
+    - Contain the routed pages or screens of the respective feature
   2. **Blocs**:
     - Contain blocs and cubits for state management in the UI.
     - Only these components import use cases to fulfill UI logic requirements.
   3. **Widgets**
-    - contain the wigets specific to the respective feature
+    - Contain the widgets specific to the respective feature
 
 #### Exceptions
-Apart from this, the data layer, business layer, and presentation layer can have imports from the `core` folder or `shared` folder (respecting the hierarchy; ie: presentation layer can never import from data layer).
+Apart from this, the data layer, business layer, and presentation layer can have imports from the `core` folder or, when it exists, a `shared` folder while still respecting the hierarchy. For example, the presentation layer can never import from the data layer.

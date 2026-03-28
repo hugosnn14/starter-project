@@ -5,7 +5,7 @@ This is a document with the specific architecture violations to be avoided in ou
 1. **Data Layer Violations**
     - **1.1 General**
         - 1.1.1 Never import from any presentation layer
-        - 1.1.2 Do not import use_cases
+        - 1.1.2 Do not import use cases directly from the data layer
     - **1.2 data_sources**
         - 1.2.1 Throw exceptions from here (do not use error codes or 'failure' objects)
         - 1.2.2 Convert API data to models/dart primitive types or trigger changes in the database/hardware/local storage/...: nothing more, nothing less
@@ -27,7 +27,7 @@ This is a document with the specific architecture violations to be avoided in ou
     - **2.2 Entities**
         - 2.2.1 Do not implement any logic related to data fetching or presentation
         - 2.2.2 Implement any BUSINESS LOGIC related to business objects in here.
-    - **2.3 use_cases**
+    - **2.3 use cases**
         - 2.3.1 Each use case must implement a single business logic operation
         - 2.3.2 Do not directly interact with the data layer; use repository interfaces
     - **2.4 repository**
@@ -42,8 +42,8 @@ This is a document with the specific architecture violations to be avoided in ou
         - 3.2.1 Blocs should only be used for UI state management and must not contain business logic
         - 3.2.2 ONLY PLACE to interact with use cases
         - 3.2.3 CAN ONLY INTERACT WITH USE_CASES for any business logic operation (not repositories or data_layer)
-    - **3.3 screens**
-        - 3.3.1 Ensure screens only handle presentation and delegate business logic to blocs or use cases
+    - **3.3 pages/screens**
+        - 3.3.1 Ensure pages or screens only handle presentation and delegate business logic to blocs or use cases
         - 3.3.2 Avoid direct dependency on specific models; use entities or simplified data structures
     - **3.4 widgets**
         - 3.4.1 Widgets should be reusable and not tied to specific business logic

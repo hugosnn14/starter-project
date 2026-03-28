@@ -132,11 +132,17 @@ Si tuviera mas tiempo, los siguientes pasos naturales serian:
 La verificacion tecnica que deje cerrada en esta rama fue:
 
 - `flutter analyze`
-- `flutter test test/features/daily_news/data/repository/article_repository_impl_test.dart`
+- `flutter test`
 
 Ademas, `frontend/README.md` incluye una guia de prueba manual del flujo principal.
 
-En cuanto a evidencia visual, el repositorio no incluye capturas ni videos versionados. Para una entrega final adjuntaria, como minimo, la pantalla principal, el detalle de un articulo propio, el detalle de una noticia externa y el flujo de creacion y publicacion.
+En cuanto a evidencia visual, la entrega final deberia incluir como minimo:
+
+- pantalla principal con contenido de Firestore y `NewsAPI`
+- detalle de un articulo propio
+- detalle de una noticia externa
+- flujo de creacion, edicion y archivado
+- un video corto o gif del recorrido principal
 
 ## 9. Extras implementados
 
@@ -151,4 +157,4 @@ Tambien dejo como artefactos utiles el esquema en `backend/docs/DB_SCHEMA.md` y 
 
 ## 10. Cierre
 
-El resultado final ya no es solo una interfaz conectada a datos de prueba. Es una app Android con lectura, detalle, guardado en sesion, creacion, publicacion y archivado de articulos, respaldada por Firebase y capaz de combinar contenido propio con titulares externos reales de forma consistente.
+El resultado final ya no es solo una interfaz conectada a datos de prueba. Es una app Android con lectura, detalle, guardado local persistente, creacion, publicacion y archivado de articulos, respaldada por Firebase y capaz de combinar contenido propio con titulares externos reales de forma consistente.

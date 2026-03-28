@@ -250,7 +250,7 @@ The Firebase Android config files identify the client app, but the higher-risk p
 
 ## Reference Docs
 
-- [Contribution Guidelines](./docs/CONTRIBUTION_GUIDELINES.md)
-- [Architecture Violations](./docs/ARCHITECTURE_VIOLATIONS.md)
-- [Code Quality Violations](./docs/CODING_GUIDELINES.md)
-- [App Architecture](./docs/APP_ARCHITECTURE.md)
+- [Contribution Guidelines](../docs/CONTRIBUTION_GUIDELINES.md)
+- [Architecture Violations](../docs/ARCHITECTURE_VIOLATIONS.md)
+- [Code Quality Violations](../docs/CODING_GUIDELINES.md)
+- [App Architecture](../docs/APP_ARCHITECTURE.md)

@@ -16,7 +16,20 @@ final migration1To2 = Migration(1, 2, (database) async {
   );
 });
 
-@Database(version: 2, entities: [ArticleModel, ArticleDraftModel])
+final migration2To3 = Migration(2, 3, (database) async {
+  await database.execute('ALTER TABLE `article` RENAME TO `article_legacy`');
+  await database.execute(
+    'CREATE TABLE IF NOT EXISTS `article` (`id` TEXT, `author` TEXT, `title` TEXT, `description` TEXT, `url` TEXT, `urlToImage` TEXT, `publishedAt` TEXT, `content` TEXT, PRIMARY KEY (`id`))',
+  );
+  await database.execute(
+    'INSERT OR REPLACE INTO `article` (`id`, `author`, `title`, `description`, `url`, `urlToImage`, `publishedAt`, `content`) '
+    'SELECT CAST(`id` AS TEXT), `author`, `title`, `description`, `url`, `urlToImage`, `publishedAt`, `content` '
+    'FROM `article_legacy` WHERE `id` IS NOT NULL',
+  );
+  await database.execute('DROP TABLE `article_legacy`');
+});
+
+@Database(version: 3, entities: [ArticleModel, ArticleDraftModel])
 abstract class AppDatabase extends FloorDatabase {
   ArticleDao get articleDAO;
 
